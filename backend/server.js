@@ -854,11 +854,11 @@ app.post('/api/ai/chat', async (req, res) => {
         history.push(message);
 
         for (const tc of toolCalls) {
-          sse({ type: 'tool_start', name: tc.function.name, label: AI_TOOL_LABELS[tc.function.name] || tc.function.name });
           let args = {};
           try { args = JSON.parse(tc.function.arguments || '{}'); } catch (_) {}
+          sse({ type: 'tool_start', name: tc.function.name, label: AI_TOOL_LABELS[tc.function.name] || tc.function.name, args });
           const result = await executeAITool(tc.function.name, args);
-          sse({ type: 'tool_end', name: tc.function.name });
+          sse({ type: 'tool_end', name: tc.function.name, ok: !result?.error });
           history.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
         }
       } else {

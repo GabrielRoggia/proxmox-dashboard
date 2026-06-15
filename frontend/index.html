@@ -1314,8 +1314,8 @@ function renderVMCards(){
 
 
 // ── Recent actions log ───────────────────────────────────────────────────────
-function addRecentAction(type, msg){
-  recentActions.unshift({type,msg,time:new Date().toTimeString().slice(0,5)});
+function addRecentAction(type, msg, ai=false){
+  recentActions.unshift({type,msg,time:new Date().toTimeString().slice(0,5),ai});
   if(recentActions.length>8) recentActions.pop();
   renderRecentActions();
 }
@@ -1326,9 +1326,13 @@ function renderRecentActions(){
   el.innerHTML=recentActions.map(a=>{
     const col=a.type==='ok'?'var(--green)':a.type==='err'?'var(--red)':'var(--blue)';
     const ico=a.type==='ok'?'✓':a.type==='err'?'✕':'↺';
+    const aiBadge=a.ai?`<span style="font-size:8px;font-family:var(--fm);font-weight:700;color:#a78bfa;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.28);border-radius:10px;padding:1px 5px;flex-shrink:0;white-space:nowrap">✦ IA</span>`:'';
     return`<div class="mig-item">
       <div style="width:18px;height:18px;border-radius:50%;background:${a.type==='ok'?'var(--greenb)':a.type==='err'?'var(--redb)':'var(--blueb)'};display:flex;align-items:center;justify-content:center;font-size:9px;color:${col};flex-shrink:0;font-weight:700">${ico}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:11px;font-family:var(--fm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.msg)}</div></div>
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
+        <div style="font-size:11px;font-family:var(--fm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${escHtml(a.msg)}</div>
+        ${aiBadge}
+      </div>
       <div style="font-size:10px;color:var(--txt3);font-family:var(--fm);flex-shrink:0">${a.time}</div>
     </div>`;
   }).join('');
@@ -2329,6 +2333,26 @@ async function analyzeOSLogs(){
 // ── AI Assistant ──────────────────────────────────────────────────────────────
 let chatHistory=[], aiThinking=false, currentTaskLog=[], currentTaskType='';
 
+function aiActionLabel(name,args){
+  const ref=args.vmid!=null
+    ?(vms.find(v=>String(v.vmid)===String(args.vmid)||v.name===String(args.vmid))?.name||String(args.vmid))
+    :null;
+  switch(name){
+    case 'start_vm':          return ref?'Iniciou VM → '+ref:null;
+    case 'stop_vm':           return ref?'Parou VM → '+ref:null;
+    case 'shutdown_vm':       return ref?'Desligou VM → '+ref:null;
+    case 'reboot_vm':         return ref?'Reiniciou VM → '+ref:null;
+    case 'update_vm_config':  return ref?'Editou config → '+ref:null;
+    case 'resize_vm_disk':    return ref?'Redimensionou disco → '+ref:null;
+    case 'delete_vm':         return ref?'Excluiu VM → '+ref:null;
+    case 'backup_vm':         return ref?'Backup → '+ref:null;
+    case 'restore_vm_backup': return args.vmid?'Restore → VM '+args.vmid:null;
+    case 'delete_backup':     return 'Excluiu backup';
+    case 'create_linux_vm':   return args.name?'Criou VM → '+args.name:null;
+    default:                  return null;
+  }
+}
+
 const AI_SUGGESTIONS=['Listar todas as VMs','Mostrar status do nó','Quais VMs estão paradas?','Verificar uso de storage'];
 
 const AI_TOOL_DONE={
@@ -2410,7 +2434,7 @@ async function sendAIMessage(){
   msgs.scrollTop=msgs.scrollHeight;
 
   let assistantBubble=null, assistantText='';
-  const toolChips={};
+  const toolChips={}, toolArgs={};
 
   try{
     const resp=await fetch(API+'/api/ai/chat',{
@@ -2452,6 +2476,7 @@ async function sendAIMessage(){
           if(ev.type==='tool_start'){
             const chip=aiAddToolChip(ev.name,ev.label);
             toolChips[ev.name]=chip;
+            if(ev.args) toolArgs[ev.name]=ev.args;
           }
 
           if(ev.type==='tool_end'){
@@ -2461,6 +2486,8 @@ async function sendAIMessage(){
               chip.innerHTML='✓ '+escHtml(AI_TOOL_DONE[ev.name]||ev.name);
               setTimeout(()=>chip.parentNode?.remove(),3500);
             }
+            const label=aiActionLabel(ev.name,toolArgs[ev.name]||{});
+            if(label) addRecentAction(ev.ok===false?'err':'ok',label,true);
           }
 
           if(ev.type==='done'){
