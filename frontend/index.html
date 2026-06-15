@@ -2274,13 +2274,23 @@ async function captureOSLogs(){
     const r=await fetch(API+'/api/vms/'+vmid+'/os-logs');
     const d=await r.json();
     if(!r.ok) throw new Error(d.error||'Erro '+r.status);
-    currentOSLogs=d.lines||[];
+    const allLines=d.lines||[];
+    currentOSLogs=allLines.filter(l=>!l.t.startsWith('##SOURCE:'));
     const total=currentOSLogs.length;
-    if(!total){
+    if(!allLines.length){
       body.innerHTML='<div style="color:var(--green);text-align:center;padding:2rem;font-family:var(--fm);font-size:12px">Nenhum log crítico encontrado. O sistema parece saudável!</div>';
     } else {
-      body.innerHTML=currentOSLogs.map(l=>{
+      body.innerHTML=allLines.map(l=>{
         const txt=l.t||'';
+        const srcMatch=txt.match(/^##SOURCE:(.+)##$/);
+        if(srcMatch){
+          const src=srcMatch[1];
+          return`<div style="display:flex;align-items:center;gap:8px;padding:.45rem 0;margin:.25rem 0">
+            <div style="flex:1;height:1px;background:var(--bdr2)"></div>
+            <span style="font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--txt3);font-family:var(--fm);white-space:nowrap;flex-shrink:0">${escHtml(src)}</span>
+            <div style="flex:1;height:1px;background:var(--bdr2)"></div>
+          </div>`;
+        }
         const lo=txt.toLowerCase();
         let color='var(--txt)';
         if(/emerg|alert|\[crit\]|\bcrit\b/.test(lo)) color='var(--red)';

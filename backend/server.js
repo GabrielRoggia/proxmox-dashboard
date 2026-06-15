@@ -898,9 +898,9 @@ app.get('/api/vms/:id/os-logs', async (req, res) => {
           ' | Sort-Object TimeCreated -Descending' +
           ' | ForEach-Object { $_.TimeCreated.ToString("yyyy-MM-dd HH:mm:ss") + " [" + $_.LevelDisplayName.ToUpper() + "] " + $_.ProviderName + ": " + (($_.Message -split "`n")[0]) }']
       : ['/bin/bash', '-c',
-          '{ journalctl -p 0..4 --no-pager -n 300 -o short-iso --no-hostname --reverse 2>/dev/null;' +
-          ' grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/syslog 2>/dev/null | tail -n 300 | tac;' +
-          ' grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/messages 2>/dev/null | tail -n 300 | tac; }'];
+          '{ echo "##SOURCE:journalctl##"; journalctl -p 0..4 --no-pager -n 300 -o short-iso --no-hostname --reverse 2>/dev/null;' +
+          ' echo "##SOURCE:/var/log/syslog##"; grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/syslog 2>/dev/null | tail -n 300 | tac;' +
+          ' echo "##SOURCE:/var/log/messages##"; grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/messages 2>/dev/null | tail -n 300 | tac; }'];
 
     let execRes;
     try {
