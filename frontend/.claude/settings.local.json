@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//etc/systemd/system/**)",
+      "Bash(systemctl cat *)"
+    ]
+  }
+}

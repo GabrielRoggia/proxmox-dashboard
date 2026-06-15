@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Proxmox Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#030711;
+  --bg1:rgba(255,255,255,.04);--bg2:rgba(255,255,255,.07);--bg3:rgba(255,255,255,.12);
+  --bdr:rgba(255,255,255,.08);--bdr2:rgba(255,255,255,.14);--bdr3:rgba(255,255,255,.26);
+  --glass:rgba(255,255,255,.05);--glass2:rgba(255,255,255,.08);
+  --blur:blur(18px) saturate(160%);
+  --txt:#f1f5f9;--txt2:#94a3b8;--txt3:#475569;
+  --blue:#3b82f6;--blue2:#1d4ed8;--blueb:rgba(59,130,246,.15);--bluef:rgba(59,130,246,.22);
+  --green:#10b981;--greenb:rgba(16,185,129,.14);
+  --amber:#f59e0b;--amberb:rgba(245,158,11,.14);
+  --red:#ef4444;--redb:rgba(239,68,68,.14);
+  --cyan:#06b6d4;
+  --r:10px;--rl:14px;--rxl:20px;
+  --ff:'Inter',system-ui,sans-serif;--fm:'IBM Plex Mono',monospace;
+  --shadow:0 4px 24px rgba(0,0,0,.45);
+  --shadow-lg:0 8px 40px rgba(0,0,0,.6);
+}
+body{background:var(--bg);color:var(--txt);font-family:var(--ff);font-size:14px;min-height:100vh;overflow-x:hidden}
+
+/* ── Background scene ── */
+.bg-scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.45}
+.b1{width:700px;height:700px;top:-200px;left:-150px;background:radial-gradient(circle,#1d4ed8 0%,transparent 70%)}
+.b2{width:600px;height:600px;bottom:-150px;right:-100px;background:radial-gradient(circle,#7c3aed 0%,transparent 70%)}
+.b3{width:500px;height:500px;top:40%;left:45%;background:radial-gradient(circle,#0e7490 0%,transparent 70%);opacity:.25}
+.bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:48px 48px;opacity:.6}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.25)}
+
+/* ── Layout ── */
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh;position:relative;z-index:1}
+@media(max-width:768px){.layout{grid-template-columns:1fr}.sidebar{display:none!important}.mob-menu{display:flex!important}}
+
+/* ── Sidebar ── */
+.sidebar{background:rgba(3,7,17,.72);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-right:1px solid var(--bdr);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;padding:1.25rem 0}
+.s-logo{padding:.25rem 1.125rem 1.25rem;border-bottom:1px solid var(--bdr);margin-bottom:.875rem}
+.s-logo-row{display:flex;align-items:center;gap:10px}
+.s-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--blue2),var(--blue));border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:11px;font-weight:600;color:#fff;flex-shrink:0;box-shadow:0 0 16px rgba(59,130,246,.4)}
+.s-name{font-size:14px;font-weight:700;line-height:1.1;letter-spacing:-.01em}
+.s-node{font-size:11px;color:var(--txt2);font-family:var(--fm)}
+.s-sec{padding:0 .875rem;margin-bottom:.5rem}
+.s-lbl{font-size:9px;font-weight:600;color:var(--txt3);letter-spacing:1.2px;text-transform:uppercase;padding:.625rem .375rem .3rem}
+.nav{display:flex;align-items:center;gap:9px;padding:.5rem .75rem;border-radius:var(--r);cursor:pointer;color:var(--txt2);font-size:12px;font-weight:500;transition:all .18s;margin-bottom:2px;user-select:none;border:1px solid transparent}
+.nav:hover{background:var(--glass2);color:var(--txt);border-color:var(--bdr)}
+.nav.on{background:var(--blueb);color:var(--blue);border-color:rgba(59,130,246,.25);box-shadow:0 0 12px rgba(59,130,246,.12)}
+.nav svg{width:14px;height:14px;flex-shrink:0;opacity:.65;transition:opacity .18s}
+.nav:hover svg{opacity:.9}
+.nav.on svg{opacity:1}
+.nbadge{margin-left:auto;background:var(--greenb);color:var(--green);font-family:var(--fm);font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px;border:1px solid rgba(16,185,129,.25)}
+.s-foot{margin-top:auto;padding:1rem 1rem 0;border-top:1px solid var(--bdr)}
+.conn{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--txt2);font-family:var(--fm)}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;animation:blink 2.5s infinite;box-shadow:0 0 6px var(--green)}
+.cdot.off{background:var(--red);animation:none;box-shadow:0 0 6px var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Topbar ── */
+.topbar{background:rgba(3,7,17,.65);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-bottom:1px solid var(--bdr);padding:.7rem 1.75rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;gap:12px}
+.ptitle{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-family:var(--fm);font-weight:500;background:var(--greenb);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.topbar-stat{font-size:11px;color:var(--txt3);font-family:var(--fm);display:flex;align-items:center;gap:4px}
+.topbar-stat strong{color:var(--txt2)}
+.btn-ref{background:var(--glass2);border:1px solid var(--bdr2);color:var(--txt2);padding:6px 14px;border-radius:var(--r);cursor:pointer;font-size:12px;font-family:var(--ff);font-weight:600;display:flex;align-items:center;gap:6px;transition:all .18s;backdrop-filter:blur(8px)}
+.btn-ref:hover{border-color:var(--bdr3);color:var(--txt);background:var(--bg3);box-shadow:var(--shadow)}
+.mob-menu{display:none;align-items:center;justify-content:center;background:var(--glass2);border:1px solid var(--bdr2);border-radius:var(--r);width:34px;height:34px;cursor:pointer}
+
+/* ── Content ── */
+.content{padding:1.75rem;position:relative;z-index:1}
+.section{display:none}.section.on{display:block}
+
+/* ── Dashboard layout ── */
+.dash-grid{display:grid;grid-template-columns:1fr 300px;gap:1.25rem;align-items:start}
+@media(max-width:1100px){.dash-grid{grid-template-columns:1fr}}
+
+/* ── Node metric cards ── */
+.mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+@media(max-width:900px){.mgrid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.mgrid{grid-template-columns:1fr}}
+.mc{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.125rem 1.25rem;transition:all .2s;cursor:default;position:relative;overflow:hidden}
+.mc::before{content:'';position:absolute;inset:0;border-radius:var(--rl);background:linear-gradient(135deg,rgba(255,255,255,.04) 0%,transparent 60%);pointer-events:none}
+.mc:hover{background:var(--glass2);border-color:var(--bdr2);box-shadow:var(--shadow)}
+.mc-lbl{font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.9px;text-transform:uppercase;margin-bottom:.625rem}
+.mc-val{font-size:26px;font-weight:700;line-height:1;margin-bottom:.3rem;font-family:var(--fm);letter-spacing:-.02em}
+.mc-sub{font-size:11px;color:var(--txt2);font-family:var(--fm)}
+.mc-bar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;margin-top:.875rem;overflow:hidden}
+.mc-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+
+/* ── VM Cards ── */
+.vm-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:1.5rem}
+.vm-card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.125rem;transition:all .22s;cursor:default;position:relative;overflow:hidden}
+.vm-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);pointer-events:none}
+.vm-card:hover{background:var(--glass2);border-color:var(--bdr2);box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06);transform:translateY(-1px)}
+.vc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem}
+.vc-info{display:flex;align-items:center;gap:9px}
+.vc-name{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.vc-id{font-size:10px;color:var(--txt3);font-family:var(--fm);margin-top:1px}
+.vc-score{text-align:right}
+.vc-score-val{font-size:19px;font-weight:700;font-family:var(--fm);line-height:1}
+.vc-score-lbl{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px}
+.vc-gauges{display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:.75rem}
+.gauge-wrap{text-align:center}
+.gauge-lbl{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-top:.3rem}
+.vc-mini{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem}
+.mini-row{display:flex;align-items:center;gap:6px}
+.mini-ico{width:12px;height:12px;color:var(--txt3);flex-shrink:0}
+.mini-lbl{font-size:10px;color:var(--txt3);flex-shrink:0;min-width:32px}
+.mini-chart{flex:1;height:22px}
+.vc-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--bdr);padding-top:.625rem;margin-top:.25rem}
+.vc-ram-txt{font-size:10px;color:var(--txt2);font-family:var(--fm)}
+.vc-uptime{font-size:10px;color:var(--txt3);font-family:var(--fm)}
+.vc-acts{display:flex;gap:4px}
+.vc-expand{font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:3px;background:none;border:none;font-family:var(--ff);font-weight:600;transition:.15s}
+.vc-expand:hover{color:var(--blue)}
+.vc-detail{display:none;border-top:1px solid var(--bdr);margin-top:.625rem;padding-top:.625rem}
+.vc-detail.open{display:block}
+
+/* ── Circular Gauge SVG ── */
+.gauge-svg{width:80px;height:80px;display:block;margin:0 auto;filter:drop-shadow(0 0 6px rgba(59,130,246,.2))}
+
+/* ── Cluster Health Panel ── */
+.health-panel{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.25rem;margin-bottom:1.25rem}
+.hp-title{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);margin-bottom:1rem}
+.hp-gauge{text-align:center;margin-bottom:1rem}
+.hp-gauge-svg{width:120px;height:120px}
+.hp-score{font-size:28px;font-weight:700;font-family:var(--fm)}
+.hp-grade{font-size:12px;color:var(--txt2);margin-top:2px}
+.hp-stats{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.hp-stat{background:var(--glass2);border:1px solid var(--bdr);border-radius:var(--r);padding:.625rem .75rem}
+.hp-stat-val{font-size:16px;font-weight:700;font-family:var(--fm)}
+.hp-stat-lbl{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+
+/* ── Migrations Panel ── */
+.mig-panel{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.25rem}
+.mig-title{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);margin-bottom:.875rem}
+.mig-empty{text-align:center;padding:1.75rem 0;color:var(--txt3);font-size:12px;font-family:var(--fm)}
+.mig-item{display:flex;align-items:center;gap:8px;padding:.5rem 0;border-bottom:1px solid var(--bdr)}
+.mig-item:last-child{border-bottom:none}
+
+/* ── Generic card ── */
+.card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;margin-bottom:1.5rem}
+.card-h{padding:.875rem 1.25rem;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:rgba(255,255,255,.02)}
+.card-t{font-size:13px;font-weight:600;letter-spacing:-.01em}
+
+/* ── VM Table ── */
+.vt{width:100%;border-collapse:collapse}
+.vt th{padding:.55rem 1.125rem;text-align:left;font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--bdr);white-space:nowrap;background:rgba(255,255,255,.02)}
+.vt td{padding:.75rem 1.125rem;border-bottom:1px solid var(--bdr);font-size:13px;vertical-align:middle}
+.vt tr:last-child td{border-bottom:none}
+.vt tbody tr:hover td{background:rgba(255,255,255,.03)}
+.vn-wrap{display:flex;align-items:center;gap:9px}
+.vico{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:9px;font-weight:600;flex-shrink:0}
+.il{background:rgba(6,182,212,.18);color:var(--cyan);border:1px solid rgba(6,182,212,.2)}
+.iw{background:rgba(59,130,246,.18);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+.ic{background:var(--greenb);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.iv{background:var(--bg3);color:var(--txt2);border:1px solid var(--bdr)}
+.vnm{font-weight:600;font-size:13px;letter-spacing:-.01em}
+.vid{font-size:10px;color:var(--txt3);font-family:var(--fm);margin-top:1px}
+.st{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:10px;font-size:10px;font-weight:600;font-family:var(--fm);white-space:nowrap}
+.sr{background:var(--greenb);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.ss{background:rgba(255,255,255,.06);color:var(--txt3);border:1px solid var(--bdr)}
+.sp{background:var(--amberb);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.st-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.bw{display:flex;align-items:center;gap:7px;min-width:90px}
+.bt{flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;min-width:50px}
+.bf{height:100%;border-radius:2px;transition:width .5s}
+.bb{background:var(--blue)}.bgr{background:var(--green)}.bam{background:var(--amber)}
+.bv{font-size:10px;color:var(--txt2);font-family:var(--fm);min-width:28px;text-align:right;white-space:nowrap}
+.acts{display:flex;gap:4px;flex-wrap:wrap}
+.btn{padding:5px 10px;border-radius:7px;border:1px solid var(--bdr2);background:rgba(255,255,255,.04);color:var(--txt2);cursor:pointer;font-size:11px;font-family:var(--ff);font-weight:500;transition:all .18s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;backdrop-filter:blur(6px)}
+.btn:hover{background:var(--glass2);border-color:var(--bdr3);color:var(--txt);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.btn svg{width:11px;height:11px}
+.btn-start:hover{background:var(--greenb);border-color:rgba(16,185,129,.4);color:var(--green)}
+.btn-stop:hover{background:var(--redb);border-color:rgba(239,68,68,.4);color:var(--red)}
+.btn-del:hover{background:var(--redb);border-color:rgba(239,68,68,.4);color:var(--red)}
+.btn-bkp:hover{background:var(--amberb);border-color:rgba(245,158,11,.4);color:var(--amber)}
+.btn-con{border-color:rgba(59,130,246,.35);color:var(--blue)}
+.btn-con:hover{background:var(--blueb);border-color:rgba(59,130,246,.5)}
+.btn-pri{background:linear-gradient(135deg,var(--blue2),var(--blue));border-color:rgba(59,130,246,.5);color:#fff;font-weight:600}
+.btn-pri:hover{background:linear-gradient(135deg,var(--blue),#60a5fa);box-shadow:0 0 16px rgba(59,130,246,.35)}
+.btn-danger{background:var(--redb);border-color:rgba(239,68,68,.35);color:var(--red)}
+.btn-danger:hover{background:var(--red);border-color:var(--red);color:#fff}
+
+/* ── Create VM ── */
+.cw{display:grid;grid-template-columns:400px 1fr;gap:1.5rem;align-items:start}
+@media(max-width:900px){.cw{grid-template-columns:1fr}}
+.fp{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.5rem}
+.fsec{font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin:1.25rem 0 .75rem;padding-top:1.25rem;border-top:1px solid var(--bdr)}
+.fsec:first-child{margin-top:0;padding-top:0;border-top:none}
+.tg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.25rem}
+.tpl{border:1px solid var(--bdr);border-radius:var(--r);padding:.875rem;cursor:pointer;transition:all .18s;text-align:center;background:rgba(255,255,255,.03)}
+.tpl:hover{border-color:var(--bdr2);background:var(--glass2)}
+.tpl.sel{border-color:rgba(59,130,246,.45);background:var(--blueb);box-shadow:0 0 16px rgba(59,130,246,.15)}
+.tpl-em{font-size:26px;margin-bottom:5px;line-height:1}
+.tpl-nm{font-size:13px;font-weight:600}
+.tpl-sub{font-size:10px;color:var(--txt2);margin-top:2px;font-family:var(--fm)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{margin-bottom:.75rem}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:.375rem;letter-spacing:.02em}
+.field input,.field select{width:100%;padding:8px 11px;background:rgba(255,255,255,.06);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none;transition:all .18s;backdrop-filter:blur(6px)}
+.field input:focus,.field select:focus{border-color:rgba(59,130,246,.6);box-shadow:0 0 0 3px var(--bluef);background:rgba(255,255,255,.08)}
+.field input::placeholder{color:var(--txt3)}
+.field select option{background:#0f1729;color:var(--txt)}
+.sl-f{margin-bottom:.875rem}
+.sl-h{display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-bottom:.5rem}
+.sl-h span{color:var(--txt2);font-weight:600}
+.sl-v{color:var(--txt);font-weight:700;font-family:var(--fm)}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:rgba(255,255,255,.12);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);border:2px solid rgba(255,255,255,.2);cursor:pointer;transition:.15s;box-shadow:0 0 8px rgba(59,130,246,.5)}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0 0 14px rgba(59,130,246,.7)}
+.preview{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:var(--r);padding:.75rem 1rem;margin-bottom:.875rem;display:flex;gap:1rem;flex-wrap:wrap}
+.pv{font-size:11px;color:var(--txt2);font-family:var(--fm)}
+.pv strong{color:var(--txt);font-weight:500}
+.ci-box{background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:var(--r);padding:1rem;margin-bottom:.875rem}
+.ci-t{font-size:10px;font-weight:600;color:var(--blue);letter-spacing:.8px;text-transform:uppercase;margin-bottom:.75rem}
+.submit{width:100%;padding:11px;background:linear-gradient(135deg,var(--blue2),var(--blue));color:#fff;border:1px solid rgba(59,130,246,.5);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--ff);transition:all .2s;box-shadow:0 0 20px rgba(59,130,246,.2)}
+.submit:hover{background:linear-gradient(135deg,var(--blue),#60a5fa);box-shadow:0 0 28px rgba(59,130,246,.4);transform:translateY(-1px)}
+.submit:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.lp{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden}
+.lp-h{padding:.625rem 1rem;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02)}
+.lp-t{font-size:10px;font-weight:600;color:var(--txt2);letter-spacing:.6px;font-family:var(--fm);text-transform:uppercase}
+.lp-b{padding:.75rem 1rem;font-family:var(--fm);font-size:11px;height:420px;overflow-y:auto;line-height:1.85}
+.ll{display:flex;gap:8px}
+.lt{color:var(--txt3);flex-shrink:0}
+.lok{color:var(--green)}.lerr{color:var(--red)}.linfo{color:var(--blue)}.lwarn{color:var(--amber)}
+
+/* ── Backups ── */
+.bkp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem}
+.bkp-grid{display:grid;gap:8px}
+.bkp-row{background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:var(--r);padding:.875rem 1rem;display:flex;align-items:center;gap:1rem;transition:all .18s}
+.bkp-row:hover{border-color:var(--bdr2);background:rgba(255,255,255,.07);box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.bkp-info{flex:1;min-width:0}
+.bkp-name{font-size:12px;font-weight:600;font-family:var(--fm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bkp-meta{font-size:10px;color:var(--txt3);font-family:var(--fm);margin-top:2px}
+.bkp-size{font-size:11px;color:var(--txt2);font-family:var(--fm);white-space:nowrap}
+.bkp-actions{display:flex;gap:4px;flex-shrink:0}
+.bkp-empty{text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px}
+.bkp-vm-sel{background:rgba(255,255,255,.06);border:1px solid var(--bdr2);border-radius:var(--r);padding:6px 10px;color:var(--txt);font-size:13px;font-family:var(--ff);outline:none;min-width:160px;backdrop-filter:blur(6px)}
+.bkp-vm-sel:focus{border-color:rgba(59,130,246,.5);box-shadow:0 0 0 2px var(--bluef)}
+.bkp-vm-sel option{background:#0f1729;color:var(--txt)}
+
+/* ── Modals ── */
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.mbg.open{display:flex}
+.mbox{background:rgba(10,16,36,.9);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border:1px solid var(--bdr2);border-radius:var(--rxl);padding:2rem;width:420px;max-width:95vw;box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.07)}
+.m-title{font-size:16px;font-weight:700;margin-bottom:.375rem;letter-spacing:-.02em}
+.m-sub{font-size:12px;color:var(--txt2);margin-bottom:1.5rem;font-family:var(--fm)}
+.pt{height:4px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-bottom:.875rem}
+.pf{height:100%;background:linear-gradient(90deg,var(--blue2),var(--blue));border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px rgba(59,130,246,.5)}
+.ps{font-size:11px;color:var(--txt3);font-family:var(--fm);min-height:1.5em}
+.ps.done{color:var(--green);font-weight:600}
+.ps.err{color:var(--red)}
+.m-close{margin-top:1.25rem;width:100%;padding:9px;background:rgba(255,255,255,.06);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);cursor:pointer;font-family:var(--ff);font-size:13px;font-weight:600;transition:all .18s;display:none}
+.m-close:hover{background:rgba(255,255,255,.1);border-color:var(--bdr3)}
+.embox{background:rgba(10,16,36,.9);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border:1px solid var(--bdr2);border-radius:var(--rxl);padding:1.5rem;width:440px;max-width:95vw;box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.07)}
+.em-t{font-size:15px;font-weight:700;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;letter-spacing:-.01em}
+.em-f{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem}
+
+/* ── Delete modal ── */
+.del-box{background:rgba(10,16,36,.92);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border:1px solid rgba(239,68,68,.3);border-radius:var(--rxl);padding:1.5rem;width:420px;max-width:95vw;box-shadow:var(--shadow-lg),0 0 30px rgba(239,68,68,.1)}
+.del-icon{width:48px;height:48px;border-radius:50%;background:var(--redb);border:1px solid rgba(239,68,68,.25);display:flex;align-items:center;justify-content:center;margin-bottom:1rem}
+.del-title{font-size:16px;font-weight:700;margin-bottom:.375rem}
+.del-sub{font-size:12px;color:var(--txt2);margin-bottom:1.25rem;font-family:var(--fm);line-height:1.6}
+.del-warn{background:var(--amberb);border:1px solid rgba(245,158,11,.25);border-radius:var(--r);padding:.75rem 1rem;font-size:11px;color:var(--amber);font-family:var(--fm);margin-bottom:1.25rem;line-height:1.5}
+.del-confirm-row{display:flex;align-items:center;gap:8px;margin-bottom:1.25rem}
+.del-confirm-row input[type=checkbox]{width:14px;height:14px;accent-color:var(--red);cursor:pointer}
+.del-confirm-row label{font-size:12px;color:var(--txt2);cursor:pointer}
+.del-force-row{display:flex;align-items:center;gap:8px;margin-bottom:1.25rem}
+.del-force-row input[type=checkbox]{width:14px;height:14px;accent-color:var(--amber);cursor:pointer}
+.del-force-row label{font-size:12px;color:var(--txt2);cursor:pointer}
+
+/* ── Backup modal ── */
+.bkp-box{background:rgba(10,16,36,.9);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border:1px solid var(--bdr2);border-radius:var(--rxl);padding:1.5rem;width:440px;max-width:95vw;box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.07)}
+
+/* ── Setup ── */
+.setup{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+.sb{background:rgba(10,16,36,.85);backdrop-filter:blur(28px) saturate(160%);-webkit-backdrop-filter:blur(28px) saturate(160%);border:1px solid var(--bdr2);border-radius:var(--rxl);padding:2.5rem;width:420px;max-width:95vw;box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.07)}
+.sb-logo{text-align:center;margin-bottom:1.75rem}
+.sb-logo .s-icon{width:52px;height:52px;font-size:14px;margin:0 auto 12px;border-radius:14px;box-shadow:0 0 24px rgba(59,130,246,.4)}
+.sb-h{font-size:22px;font-weight:700;text-align:center;margin-bottom:.5rem;letter-spacing:-.03em}
+.sb-sub{font-size:13px;color:var(--txt2);text-align:center;margin-bottom:1.75rem;line-height:1.5}
+.sb-btn{width:100%;padding:11px;background:linear-gradient(135deg,var(--blue2),var(--blue));color:#fff;border:1px solid rgba(59,130,246,.5);border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--ff);transition:all .2s;box-shadow:0 0 20px rgba(59,130,246,.2)}
+.sb-btn:hover{box-shadow:0 0 30px rgba(59,130,246,.4);transform:translateY(-1px)}
+.sb-err{margin-top:.875rem;font-size:12px;color:var(--red);text-align:center;display:none;font-family:var(--fm)}
+
+/* ── Storage ── */
+.sto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;padding:1.25rem}
+.sto-c{background:rgba(255,255,255,.05);backdrop-filter:blur(10px);border:1px solid var(--bdr);border-radius:var(--r);padding:1rem 1.125rem;transition:all .18s}
+.sto-c:hover{background:rgba(255,255,255,.08);border-color:var(--bdr2)}
+.sto-nm{font-size:13px;font-weight:600;margin-bottom:3px}
+.sto-ty{font-size:10px;color:var(--txt2);font-family:var(--fm);margin-bottom:.625rem}
+
+/* ── Toast ── */
+.toasts{position:fixed;bottom:1.5rem;right:1.5rem;z-index:400;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:rgba(10,16,36,.92);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:1px solid var(--bdr2);border-radius:var(--rl);padding:.75rem 1.125rem;font-size:12px;min-width:230px;display:flex;align-items:center;gap:10px;transform:translateX(calc(100% + 2rem));opacity:0;transition:.28s cubic-bezier(.34,1.56,.64,1);pointer-events:none;font-family:var(--fm);box-shadow:var(--shadow)}
+.toast.in{transform:translateX(0);opacity:1}
+.tico{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;font-weight:700}
+.tok .tico{background:var(--greenb);color:var(--green);border:1px solid rgba(16,185,129,.25)}
+.terr .tico{background:var(--redb);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.tinfo .tico{background:var(--blueb);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .7s linear infinite;display:inline-block}
+.section-hdr{display:flex;align-items:center;gap:8px;margin-bottom:1rem}
+.section-hdr h2{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt3)}
+.divider{flex:1;height:1px;background:var(--bdr)}
+
+/* ── Logs / Tasks ── */
+.task-row{background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:var(--r);padding:.75rem 1rem;display:flex;align-items:center;gap:1rem;transition:all .18s;margin-bottom:6px}
+.task-row:hover{border-color:var(--bdr2);background:rgba(255,255,255,.07);box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.task-type{font-size:11px;font-weight:700;font-family:var(--fm);min-width:90px;color:var(--txt)}
+.task-upid{font-size:10px;color:var(--txt3);font-family:var(--fm);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.task-time{font-size:10px;color:var(--txt2);font-family:var(--fm);white-space:nowrap}
+.task-dur{font-size:10px;color:var(--txt3);font-family:var(--fm);white-space:nowrap;min-width:48px}
+
+/* ── Task Log Modal ── */
+.log-modal-box{background:rgba(10,16,36,.92);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border:1px solid var(--bdr2);border-radius:var(--rxl);padding:1.5rem;width:680px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg),inset 0 1px 0 rgba(255,255,255,.07)}
+.log-output{background:rgba(0,0,0,.4);border:1px solid var(--bdr);border-radius:var(--r);padding:.75rem 1rem;flex:1;overflow-y:auto;font-family:var(--fm);font-size:11px;line-height:1.9;min-height:300px;max-height:480px}
+.log-line{padding:1px 0;border-bottom:1px solid rgba(255,255,255,.025)}
+.log-line:last-child{border-bottom:none}
+
+/* ── VM card quick-access buttons ── */
+.vc-acts .btn{padding:5px 8px;font-size:10px}
+.vc-acts .btn svg{width:12px;height:12px}
+
+/* ── Backup section ── */
+.bkp-stat{display:flex;gap:.5rem;flex-wrap:wrap;padding:.75rem 1rem;border-bottom:1px solid var(--bdr);background:rgba(255,255,255,.03)}
+.bkp-stat-item{font-size:11px;color:var(--txt2);font-family:var(--fm)}
+.bkp-stat-item strong{color:var(--txt);font-weight:600}
+
+/* ── Node badges ── */
+.node-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:var(--fm);font-weight:600;padding:2px 7px;border-radius:10px;background:var(--greenb);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.node-badge.off{background:var(--redb);color:var(--red);border-color:rgba(239,68,68,.2)}
+
+/* ── Slider + number input combo ── */
+.sl-num{width:64px;padding:5px 7px;background:rgba(255,255,255,.07);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:12px;font-family:var(--fm);outline:none;text-align:center;appearance:textfield;-moz-appearance:textfield;backdrop-filter:blur(4px)}
+.sl-num::-webkit-outer-spin-button,.sl-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.sl-num:focus{border-color:rgba(59,130,246,.55);box-shadow:0 0 0 2px var(--bluef)}
+
+/* ── Tab bar ── */
+.tab-bar{display:flex;gap:3px;background:rgba(255,255,255,.06);border:1px solid var(--bdr);border-radius:var(--r);padding:3px;backdrop-filter:blur(8px)}
+.tab-btn{padding:5px 16px;border-radius:7px;font-size:11px;font-weight:600;color:var(--txt3);cursor:pointer;border:none;background:transparent;font-family:var(--ff);transition:all .18s}
+.tab-btn:hover{color:var(--txt2)}
+.tab-btn.on{background:rgba(255,255,255,.1);color:var(--txt);box-shadow:0 1px 6px rgba(0,0,0,.4);border:1px solid var(--bdr2)}
+.tab-pane{display:none}.tab-pane.on{display:block}
+
+/* ── Backup job cards ── */
+.job-row{background:rgba(255,255,255,.04);border:1px solid var(--bdr);border-radius:var(--r);padding:.875rem 1rem;display:grid;grid-template-columns:1fr auto;gap:.5rem;transition:all .18s;margin-bottom:8px;align-items:center}
+.job-row:hover{border-color:var(--bdr2);background:rgba(255,255,255,.07);box-shadow:0 2px 12px rgba(0,0,0,.3)}
+.job-sched{font-size:13px;font-weight:700;font-family:var(--fm);color:var(--blue)}
+.job-meta{font-size:10px;color:var(--txt3);font-family:var(--fm);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.job-meta span{display:inline-flex;align-items:center;gap:3px}
+.job-acts{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.job-empty{text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px}
+
+/* ── Toggle switch ── */
+.toggle{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-sl{position:absolute;inset:0;border-radius:20px;background:rgba(255,255,255,.12);cursor:pointer;transition:.22s;border:1px solid var(--bdr)}
+.toggle input:checked+.toggle-sl{background:var(--green);border-color:rgba(16,185,129,.4);box-shadow:0 0 10px rgba(16,185,129,.3)}
+.toggle-sl::before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.22s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.toggle input:checked+.toggle-sl::before{transform:translateX(16px)}
+
+/* ── Job modal sections ── */
+.job-sec-hdr{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);padding:.625rem 0 .5rem;border-bottom:1px solid var(--bdr);margin-bottom:.875rem;margin-top:.25rem}
+.job-sec-hdr:first-of-type{margin-top:0}
+.job-sel{width:100%;padding:8px 10px;background:rgba(255,255,255,.06);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none;transition:all .18s;backdrop-filter:blur(6px)}
+.job-sel:focus{border-color:rgba(59,130,246,.55);box-shadow:0 0 0 2px var(--bluef);background:rgba(255,255,255,.09)}
+.job-sel option{background:#0f1729;color:var(--txt)}
+.job-ret-input{width:100%;padding:7px 8px;background:rgba(255,255,255,.06);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--fm);outline:none;text-align:center;transition:all .18s}
+.job-ret-input:focus{border-color:rgba(59,130,246,.55);box-shadow:0 0 0 2px var(--bluef)}
+.ret-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1.25rem}
+@media(max-width:480px){.ret-grid{grid-template-columns:1fr 1fr}}
+
+/* ── VM selection table inside modal ── */
+.vm-sel-table{width:100%;border-collapse:collapse}
+.vm-sel-table th{padding:.4rem .75rem;text-align:left;font-size:9px;font-weight:600;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--bdr);white-space:nowrap;background:rgba(255,255,255,.04)}
+.vm-sel-table td{padding:.55rem .75rem;border-bottom:1px solid var(--bdr);font-size:12px;vertical-align:middle}
+.vm-sel-table tr:last-child td{border-bottom:none}
+.vm-sel-table tbody tr:hover td{background:rgba(255,255,255,.05);cursor:pointer}
+
+/* ── Day picker ── */
+.day-picker{display:flex;gap:5px;flex-wrap:wrap;margin:.5rem 0 .875rem}
+.day-btn{display:flex;align-items:center;justify-content:center;width:38px;height:34px;border:1px solid var(--bdr2);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;color:var(--txt2);transition:all .18s;user-select:none;font-family:var(--ff);background:rgba(255,255,255,.04)}
+.day-btn:hover{border-color:var(--bdr3);color:var(--txt);background:rgba(255,255,255,.08)}
+.day-btn.sel{background:var(--blueb);border-color:rgba(59,130,246,.45);color:var(--blue);box-shadow:0 0 10px rgba(59,130,246,.15)}
+.day-all{width:auto;padding:0 10px;gap:4px}
+.time-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ── Responsive & utility ── */
+@media(max-width:480px){.topbar{padding:.6rem 1rem}.content{padding:1rem}}
+@media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div class="bg-scene" aria-hidden="true">
+  <div class="bg-blob b1"></div>
+  <div class="bg-blob b2"></div>
+  <div class="bg-blob b3"></div>
+  <div class="bg-grid"></div>
+</div>
+
+<div class="setup" id="setup">
+  <div class="sb">
+    <div class="sb-logo">
+      <div class="s-icon">PVE</div>
+      <div class="sb-h">Proxmox Dashboard</div>
+      <div class="sb-sub">Informe a URL do backend para conectar</div>
+    </div>
+    <div class="field">
+      <label>URL do Backend</label>
+      <input id="api-input" type="text" placeholder="http://192.168.3.102" value="http://192.168.3.102">
+    </div>
+    <button class="sb-btn" onclick="connect()">Conectar →</button>
+    <div class="sb-err" id="sb-err"></div>
+  </div>
+</div>
+
+<div class="layout" id="app" style="display:none;position:relative;z-index:1">
+  <aside class="sidebar">
+    <div class="s-logo">
+      <div class="s-logo-row">
+        <div class="s-icon">PVE</div>
+        <div><div class="s-name">Proxmox</div><div class="s-node" id="sb-node">pve01</div></div>
+      </div>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">Visão Geral</div>
+      <div class="nav on" onclick="nav('dash')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav" onclick="nav('vms')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        VMs<span class="nbadge" id="nb-vms">0</span>
+      </div>
+      <div class="nav" onclick="nav('create')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        Criar VM
+      </div>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">Infra</div>
+      <div class="nav" onclick="nav('storage')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="9" ry="3"/><path d="M3 6v6c0 1.66 4.03 3 9 3s9-1.34 9-3V6"/><path d="M3 12v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg>
+        Storage
+      </div>
+      <div class="nav" onclick="nav('backups')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Backups
+      </div>
+      <div class="nav" onclick="nav('logs')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Logs
+      </div>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">Sistema</div>
+      <div class="nav" onclick="reconfig()">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+        Configurações
+      </div>
+    </div>
+    <div class="s-foot">
+      <div class="conn"><div class="cdot" id="cdot"></div><span id="ctxt">Conectado</span></div>
+    </div>
+  </aside>
+
+  <div style="display:flex;flex-direction:column;min-height:100vh;overflow:hidden">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="ptitle" id="ptitle">Dashboard</span>
+        <span id="tb-tag" class="tag"></span>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-stat" id="tb-vm-stat" style="display:none">VMs: <strong id="tb-vm-count">—</strong></span>
+        <span class="topbar-stat" id="tb-cpu-stat" style="display:none">CPU: <strong id="tb-cpu-val">—</strong></span>
+        <span class="topbar-stat" id="tb-updated" style="display:none">↻ <strong id="tb-updated-val">—</strong></span>
+        <button class="btn-ref" onclick="refreshAll()"><span id="ri">↺</span> Atualizar</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="section on" id="sec-dash">
+        <div class="mgrid">
+          <div class="mc"><div class="mc-lbl">CPU</div><div class="mc-val" id="m-cpu">—</div><div class="mc-sub" id="m-cpu-s"></div><div class="mc-bar"><div class="mc-fill bb" id="mb-cpu" style="width:0%"></div></div></div>
+          <div class="mc"><div class="mc-lbl">Memória</div><div class="mc-val" id="m-mem">—</div><div class="mc-sub" id="m-mem-s"></div><div class="mc-bar"><div class="mc-fill bgr" id="mb-mem" style="width:0%"></div></div></div>
+          <div class="mc"><div class="mc-lbl">Disco Raiz</div><div class="mc-val" id="m-disk">—</div><div class="mc-sub" id="m-disk-s"></div><div class="mc-bar"><div class="mc-fill bam" id="mb-disk" style="width:0%"></div></div></div>
+          <div class="mc"><div class="mc-lbl">VMs</div><div class="mc-val" id="m-vms">—</div><div class="mc-sub" id="m-vms-s"></div></div>
+        </div>
+
+        <div class="dash-grid">
+          <div>
+            <div class="section-hdr"><h2>Máquinas Virtuais</h2><div class="divider"></div><button class="btn btn-pri" onclick="nav('create')" style="font-size:11px;padding:3px 9px">+ Nova VM</button></div>
+            <div class="vm-cards" id="vm-cards"></div>
+          </div>
+          <div>
+            <div class="mig-panel">
+              <div class="mig-title">Ações Recentes</div>
+              <div id="mig-list"><div class="mig-empty">Nenhuma ação recente</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALL VMs -->
+      <div class="section" id="sec-vms">
+        <div class="card">
+          <div class="card-h"><span class="card-t">Todas as VMs</span><button class="btn btn-pri" onclick="nav('create')">+ Nova VM</button></div>
+          <div style="overflow-x:auto"><table class="vt"><thead><tr><th>ID</th><th>VM</th><th>Status</th><th>CPU</th><th>Memória</th><th>Disco</th><th>Uptime</th><th>Ações</th></tr></thead><tbody id="tb-vms"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- CREATE VM -->
+      <div class="section" id="sec-create">
+        <div class="cw">
+          <div class="fp">
+            <div class="fsec">Template</div>
+            <div class="tg-grid">
+              <div class="tpl sel" id="tpl-u" onclick="selTpl('ubuntu')"><div class="tpl-em" style="font-family:var(--fm);font-size:18px;font-weight:700;color:var(--txt2);margin-bottom:5px">LNX</div><div class="tpl-nm">Ubuntu 24.04</div><div class="tpl-sub">Noble Numbat LTS</div></div>
+              <div class="tpl" id="tpl-w" onclick="selTpl('win')"><div class="tpl-em" style="font-family:var(--fm);font-size:18px;font-weight:700;color:var(--txt2);margin-bottom:5px">WIN</div><div class="tpl-nm">Win Server 2025</div><div class="tpl-sub">Evaluation</div></div>
+            </div>
+            <div class="fsec">Identificação</div>
+            <div class="frow">
+              <div class="field"><label>Nome</label><input id="f-name" value="SRV-Nova" placeholder="SRV-Nova"></div>
+              <div class="field"><label>VMID</label><input id="f-vmid" type="number" value="105" min="100"></div>
+            </div>
+            <div class="fsec">Recursos</div>
+            <div class="sl-f">
+              <div class="sl-h"><span>vCPUs</span><input type="number" class="sl-num" id="num-cpu" min="1" max="128" value="2" oninput="syncNum('cpu')"></div>
+              <input type="range" min="1" max="16" step="1" value="2" id="sl-cpu" oninput="syncSl()">
+            </div>
+            <div class="sl-f">
+              <div class="sl-h"><span>RAM (GiB)</span><input type="number" class="sl-num" id="num-mem" min="1" max="512" value="2" oninput="syncNum('mem')"></div>
+              <input type="range" min="1" max="32" step="1" value="2" id="sl-mem" oninput="syncSl()">
+            </div>
+            <div class="sl-f">
+              <div class="sl-h"><span>Disco (GiB)</span><input type="number" class="sl-num" id="num-disk" min="10" max="4000" step="10" value="30" oninput="syncNum('disk')"></div>
+              <input type="range" min="10" max="500" step="10" value="30" id="sl-disk" oninput="syncSl()">
+            </div>
+            <div class="preview">
+              <div class="pv">Tpl: <strong id="pv-tpl">Ubuntu 24.04</strong></div>
+              <div class="pv">CPU: <strong id="pv-cpu">2 vCPU</strong></div>
+              <div class="pv">RAM: <strong id="pv-mem">2 GiB</strong></div>
+              <div class="pv">Disco: <strong id="pv-disk">30 GiB</strong></div>
+              <div class="pv">Total RAM: <strong id="pv-mem-mb">2048 MiB</strong></div>
+            </div>
+            <div class="fsec">Cloud-Init</div>
+            <div class="ci-box">
+              <div class="ci-t">Cloud-Init — Configuração automática</div>
+              <div class="frow">
+                <div class="field"><label>Usuário</label><input id="f-user" value="roggia" placeholder="admin"></div>
+                <div class="field"><label>Senha</label><input id="f-pass" type="password" placeholder="••••••••"></div>
+              </div>
+              <div class="field"><label>SSH Public Key (opcional)</label><input id="f-ssh" placeholder="ssh-rsa AAAA..."></div>
+              <div class="frow">
+                <div class="field"><label>IP / CIDR</label><input id="f-ip" placeholder="192.168.3.105/24"></div>
+                <div class="field"><label>Gateway</label><input id="f-gw" placeholder="192.168.3.1"></div>
+              </div>
+            </div>
+            <div class="field"><label>Storage</label><select id="f-stor"><option value="local-lvm">local-lvm (padrão)</option></select></div>
+            <button class="submit" id="create-btn" onclick="createVM()">Criar VM →</button>
+          </div>
+          <div class="lp">
+            <div class="lp-h"><span class="lp-t">LOG DE OPERAÇÕES</span><button class="btn" onclick="clearLog()" style="padding:2px 7px;font-size:10px">Limpar</button></div>
+            <div class="lp-b" id="log-body"><div class="ll"><span class="lt">--:--:--</span><span class="linfo">Aguardando operações...</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STORAGE -->
+      <div class="section" id="sec-storage">
+        <div class="card">
+          <div class="card-h"><span class="card-t">Storage</span></div>
+          <div class="sto-grid" id="sto-grid"><div style="color:var(--txt3);padding:1rem;font-family:var(--fm);font-size:12px">Carregando...</div></div>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div class="section" id="sec-logs">
+        <div class="card">
+          <div class="card-h">
+            <span class="card-t">Logs de VM</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <select class="bkp-vm-sel" id="logs-vm-sel" onchange="loadVMTasks()">
+                <option value="">Selecionar VM...</option>
+              </select>
+              <button class="btn" onclick="loadVMTasks()" title="Atualizar">↺ Atualizar</button>
+            </div>
+          </div>
+          <div id="tasks-list" style="padding:1rem">
+            <div style="text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px">Selecione uma VM para ver o histórico de tarefas</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BACKUPS -->
+      <div class="section" id="sec-backups">
+        <div class="card">
+          <div class="card-h">
+            <span class="card-t">Backups</span>
+            <div class="tab-bar">
+              <button class="tab-btn on" id="tab-bkp" onclick="switchBkpTab('bkp')">Backups</button>
+              <button class="tab-btn" id="tab-jobs" onclick="switchBkpTab('jobs')">Agendamentos</button>
+            </div>
+          </div>
+
+          <!-- Tab: Backups por VM -->
+          <div class="tab-pane on" id="tp-bkp">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:.75rem 1rem;border-bottom:1px solid var(--bdr)">
+              <select class="bkp-vm-sel" id="bkp-vm-sel" onchange="loadBackups()" style="flex:1;min-width:160px">
+                <option value="">Selecionar VM...</option>
+              </select>
+              <button class="btn btn-pri" onclick="openCreateBackup()" id="bkp-create-btn" style="display:none">+ Criar Backup</button>
+            </div>
+            <div id="bkp-list" style="padding:1rem"><div class="bkp-empty">Selecione uma VM para ver seus backups</div></div>
+          </div>
+
+          <!-- Tab: Agendamentos -->
+          <div class="tab-pane" id="tp-jobs">
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:.75rem 1rem;border-bottom:1px solid var(--bdr)">
+              <button class="btn btn-pri" onclick="openCreateJob()">+ Novo Agendamento</button>
+            </div>
+            <div id="jobs-list" style="padding:1rem"><div class="job-empty">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Edit VM Modal -->
+<div class="mbg" id="edit-modal">
+  <div class="embox">
+    <div class="em-t"><span id="edit-title">Editar VM</span><button class="btn" onclick="closeM('edit-modal')">✕</button></div>
+    <div class="sl-f"><div class="sl-h"><span>vCPUs</span><span class="sl-v" id="elv-cpu">2 cores</span></div><input type="range" min="1" max="4" step="1" value="2" id="esl-cpu" oninput="document.getElementById('elv-cpu').textContent=this.value+' cores'"></div>
+    <div class="sl-f"><div class="sl-h"><span>RAM (GiB)</span><span class="sl-v" id="elv-mem">4 GiB</span></div><input type="range" min="1" max="14" step="1" value="4" id="esl-mem" oninput="document.getElementById('elv-mem').textContent=this.value+' GiB'"></div>
+    <div class="sl-f"><div class="sl-h"><span>Disco extra</span><span class="sl-v" id="elv-disk">Sem alteração</span></div><input type="range" min="0" max="100" step="10" value="0" id="esl-disk" oninput="document.getElementById('elv-disk').textContent=(+this.value>0?'+'+this.value+' GiB':'Sem alteração')"></div>
+    <div style="font-size:11px;color:var(--txt3);font-family:var(--fm);margin-top:.25rem">Disco só pode ser aumentado.</div>
+    <div class="em-f"><button class="btn" onclick="closeM('edit-modal')">Cancelar</button><button class="btn btn-pri" onclick="applyEdit()">Aplicar</button></div>
+  </div>
+</div>
+
+<!-- Create VM Progress Modal -->
+<div class="mbg" id="prog-modal">
+  <div class="mbox">
+    <div class="m-title" id="prog-title">Criando VM</div>
+    <div class="m-sub" id="prog-sub"></div>
+    <div class="pt"><div class="pf" id="prog-fill" style="width:0%"></div></div>
+    <div class="ps" id="prog-step">Iniciando...</div>
+    <button class="m-close" id="prog-close" onclick="closeM('prog-modal');nav('dash')">Ver VMs →</button>
+  </div>
+</div>
+
+<!-- Delete VM Modal -->
+<div class="mbg" id="del-modal">
+  <div class="del-box">
+    <div class="del-icon">
+      <svg width="22" height="22" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+    </div>
+    <div class="del-title">Excluir VM</div>
+    <div class="del-sub" id="del-sub">Você está prestes a excluir <strong id="del-vmname"></strong> (ID <span id="del-vmid"></span>). Esta ação é irreversível e todos os dados serão perdidos.</div>
+    <div class="del-warn" id="del-running-warn" style="display:none">Esta VM está em execução. Marque "Forçar exclusão" para pará-la automaticamente antes de excluir.</div>
+    <div class="del-force-row" id="del-force-row" style="display:none">
+      <input type="checkbox" id="del-force-chk">
+      <label for="del-force-chk">Forçar exclusão (para a VM automaticamente)</label>
+    </div>
+    <div class="del-confirm-row">
+      <input type="checkbox" id="del-confirm-chk" onchange="document.getElementById('del-ok-btn').disabled=!this.checked">
+      <label for="del-confirm-chk">Entendo que esta ação é permanente</label>
+    </div>
+    <div class="em-f">
+      <button class="btn" onclick="closeM('del-modal')">Cancelar</button>
+      <button class="btn btn-danger" id="del-ok-btn" disabled>Excluir VM</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Backup Modal -->
+<div class="mbg" id="bkp-modal">
+  <div class="bkp-box">
+    <div class="em-t"><span>Criar Backup</span><button class="btn" onclick="closeM('bkp-modal')">✕</button></div>
+    <div style="font-size:12px;color:var(--txt2);font-family:var(--fm);margin-bottom:1.25rem" id="bkp-modal-sub"></div>
+    <div class="field">
+      <label>Storage de destino</label>
+      <select id="bkp-stor-sel" style="width:100%;padding:7px 10px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none"></select>
+    </div>
+    <div class="field">
+      <label>Modo</label>
+      <select id="bkp-mode-sel" style="width:100%;padding:7px 10px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none">
+        <option value="snapshot">Snapshot (sem downtime)</option>
+        <option value="suspend">Suspend (breve pausa)</option>
+        <option value="stop">Stop (desliga a VM)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Compressão</label>
+      <select id="bkp-comp-sel" style="width:100%;padding:7px 10px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none">
+        <option value="zstd">zstd (rápido e eficiente)</option>
+        <option value="lzo">lzo (mais rápido)</option>
+        <option value="gzip">gzip (maior compressão)</option>
+        <option value="0">Sem compressão</option>
+      </select>
+    </div>
+    <div class="field"><label>Notas (opcional)</label><input id="bkp-notes" placeholder="Backup antes da atualização..." style="width:100%;padding:7px 10px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none"></div>
+    <div class="em-f">
+      <button class="btn" onclick="closeM('bkp-modal')">Cancelar</button>
+      <button class="btn btn-pri" onclick="submitBackup()">Iniciar Backup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Restore Backup Modal -->
+<div class="mbg" id="restore-modal">
+  <div class="bkp-box">
+    <div class="em-t"><span>Restaurar Backup</span><button class="btn" onclick="closeM('restore-modal')">✕</button></div>
+    <div style="font-size:12px;color:var(--txt2);font-family:var(--fm);margin-bottom:1.25rem" id="restore-sub"></div>
+    <div class="del-warn">A restauração irá substituir a VM existente. Certifique-se de ter um backup recente antes de continuar.</div>
+    <div class="field">
+      <label>Storage de destino</label>
+      <select id="restore-stor-sel" style="width:100%;padding:7px 10px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:var(--r);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none"></select>
+    </div>
+    <div class="del-confirm-row">
+      <input type="checkbox" id="restore-confirm-chk" onchange="document.getElementById('restore-ok-btn').disabled=!this.checked">
+      <label for="restore-confirm-chk">Confirmo a restauração e entendo que os dados atuais serão substituídos</label>
+    </div>
+    <div class="em-f">
+      <button class="btn" onclick="closeM('restore-modal')">Cancelar</button>
+      <button class="btn btn-pri" id="restore-ok-btn" disabled onclick="confirmRestore()">Restaurar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Backup Job Modal -->
+<div class="mbg" id="job-modal">
+  <div style="background:var(--bg1);border:1px solid var(--bdr2);border-radius:var(--rxl);padding:1.5rem;width:660px;max-width:96vw;max-height:92vh;overflow-y:auto">
+    <div class="em-t" style="margin-bottom:1rem">
+      <span style="font-size:15px;font-weight:700" id="job-modal-title">Novo Agendamento de Backup</span>
+      <button class="btn" onclick="closeM('job-modal')">✕</button>
+    </div>
+
+    <!-- ── GERAL ── -->
+    <div class="job-sec-hdr">Geral</div>
+    <div class="frow">
+      <div class="field">
+        <label>Storage de destino</label>
+        <select id="job-storage" class="job-sel"></select>
+      </div>
+      <div class="field">
+        <label>Modo</label>
+        <select id="job-mode" class="job-sel">
+          <option value="snapshot">Snapshot (sem downtime)</option>
+          <option value="suspend">Suspend (breve pausa)</option>
+          <option value="stop">Stop (desliga a VM)</option>
+        </select>
+      </div>
+    </div>
+    <div class="frow" style="align-items:center">
+      <div class="field">
+        <label>Compressão</label>
+        <select id="job-compress" class="job-sel">
+          <option value="zstd">ZSTD (rápido e eficiente)</option>
+          <option value="lzo">LZO (mais rápido)</option>
+          <option value="gzip">GZIP (maior compressão)</option>
+          <option value="0">Sem compressão</option>
+        </select>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:10px;padding-top:1.4rem">
+        <label class="toggle">
+          <input type="checkbox" id="job-enabled" checked>
+          <span class="toggle-sl"></span>
+        </label>
+        <span style="font-size:12px;color:var(--txt2);white-space:nowrap">Habilitado</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Comentário (opcional)</label>
+      <input id="job-comment" type="text" placeholder="Backup noturno automático..." class="job-sel" style="padding:7px 10px">
+    </div>
+
+    <!-- ── AGENDAMENTO ── -->
+    <div class="job-sec-hdr">Agendamento</div>
+    <div class="frow" style="align-items:flex-end;gap:8px">
+      <div class="field" style="flex:1.4">
+        <label>Frequência</label>
+        <select id="job-freq" class="job-sel" onchange="onFreqChange()">
+          <option value="daily">Diário</option>
+          <option value="workdays">Dias úteis (Seg–Sex)</option>
+          <option value="weekend">Fins de semana (Sáb–Dom)</option>
+          <option value="weekly">Semanal (Segunda-feira)</option>
+          <option value="monthly">Mensal (dia 1)</option>
+          <option value="custom">Personalizado</option>
+        </select>
+      </div>
+      <div class="field" style="margin:0;flex:0 0 90px">
+        <label>Hora</label>
+        <select id="job-hour" class="job-sel" onchange="updateJobPreview()"></select>
+      </div>
+      <div class="field" style="margin:0;flex:0 0 80px">
+        <label>Minuto</label>
+        <select id="job-minute" class="job-sel" onchange="updateJobPreview()">
+          <option value="00">:00</option>
+          <option value="15">:15</option>
+          <option value="30">:30</option>
+          <option value="45">:45</option>
+        </select>
+      </div>
+    </div>
+    <div id="job-custom-section" style="display:none;margin-bottom:.875rem">
+      <label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:.4rem">Dias da semana</label>
+      <div class="day-picker" id="job-days">
+        <div class="day-btn day-all sel" id="day-all-btn" onclick="toggleAllDays()">Todos</div>
+        <div class="day-btn" data-day="mon" onclick="toggleDay(this)">Seg</div>
+        <div class="day-btn" data-day="tue" onclick="toggleDay(this)">Ter</div>
+        <div class="day-btn" data-day="wed" onclick="toggleDay(this)">Qua</div>
+        <div class="day-btn" data-day="thu" onclick="toggleDay(this)">Qui</div>
+        <div class="day-btn" data-day="fri" onclick="toggleDay(this)">Sex</div>
+        <div class="day-btn" data-day="sat" onclick="toggleDay(this)">Sáb</div>
+        <div class="day-btn" data-day="sun" onclick="toggleDay(this)">Dom</div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r);padding:.6rem 1rem;margin-bottom:1rem;font-size:11px;color:var(--txt2);font-family:var(--fm)">
+      Resultado: <strong id="job-preview" style="color:var(--blue)">—</strong>
+    </div>
+
+    <!-- ── SELEÇÃO DE VMs ── -->
+    <div class="job-sec-hdr">Seleção de VMs</div>
+    <div class="field">
+      <label>Modo de seleção</label>
+      <select id="job-vm-mode" class="job-sel" onchange="toggleJobVMList()">
+        <option value="all">Todas as VMs</option>
+        <option value="select">Incluir VMs selecionadas</option>
+      </select>
+    </div>
+    <div id="job-vm-list" style="display:none;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;margin-bottom:.875rem">
+      <div style="display:flex;align-items:center;gap:8px;padding:.5rem .875rem;background:var(--bg2);border-bottom:1px solid var(--bdr)">
+        <input type="checkbox" id="job-vm-all-chk" onchange="toggleAllVMs(this)" style="accent-color:var(--blue);width:14px;height:14px">
+        <span style="font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.6px;text-transform:uppercase">Selecionar / desselecionar todas</span>
+      </div>
+      <div style="max-height:210px;overflow-y:auto">
+        <table class="vm-sel-table"><thead><tr>
+          <th style="width:36px"></th><th>ID</th><th>Status</th><th>Nome</th><th>Tipo</th>
+        </tr></thead><tbody id="job-vm-tbody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ── RETENÇÃO ── -->
+    <div class="job-sec-hdr">Retenção</div>
+    <div style="font-size:11px;color:var(--txt3);font-family:var(--fm);margin-bottom:.75rem">Defina quantos backups manter por período. Use <strong style="color:var(--txt2)">0</strong> para desativar cada regra.</div>
+    <div class="ret-grid">
+      <div class="field" style="margin:0">
+        <label>Últimos (keep-last)</label>
+        <input id="job-keep-last"    class="job-ret-input" type="number" min="0" value="7" placeholder="0">
+      </div>
+      <div class="field" style="margin:0">
+        <label>Por hora (keep-hourly)</label>
+        <input id="job-keep-hourly"  class="job-ret-input" type="number" min="0" value="0" placeholder="0">
+      </div>
+      <div class="field" style="margin:0">
+        <label>Por dia (keep-daily)</label>
+        <input id="job-keep-daily"   class="job-ret-input" type="number" min="0" value="0" placeholder="0">
+      </div>
+      <div class="field" style="margin:0">
+        <label>Por semana (keep-weekly)</label>
+        <input id="job-keep-weekly"  class="job-ret-input" type="number" min="0" value="0" placeholder="0">
+      </div>
+      <div class="field" style="margin:0">
+        <label>Por mês (keep-monthly)</label>
+        <input id="job-keep-monthly" class="job-ret-input" type="number" min="0" value="0" placeholder="0">
+      </div>
+      <div class="field" style="margin:0">
+        <label>Por ano (keep-yearly)</label>
+        <input id="job-keep-yearly"  class="job-ret-input" type="number" min="0" value="0" placeholder="0">
+      </div>
+    </div>
+
+    <div class="em-f">
+      <button class="btn" onclick="closeM('job-modal')">Cancelar</button>
+      <button class="btn btn-pri" id="job-submit-btn" onclick="submitJob()">Criar Agendamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Log Viewer Modal -->
+<div class="mbg" id="task-log-modal">
+  <div class="log-modal-box">
+    <div class="em-t">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span id="task-log-title">Log da Tarefa</span>
+        <div id="task-log-meta" style="font-size:11px;font-weight:400;color:var(--txt2);font-family:var(--fm)"></div>
+      </div>
+      <button class="btn" onclick="closeM('task-log-modal')">✕</button>
+    </div>
+    <div id="task-log-status" style="margin-bottom:.75rem"></div>
+    <div class="log-output" id="task-log-body">
+      <div style="color:var(--txt3)">Carregando...</div>
+    </div>
+    <div class="em-f" style="margin-top:1rem">
+      <button class="btn" onclick="closeM('task-log-modal')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+let API = localStorage.getItem('pve_api') || '';
+let vms = [], editVmid = null, selTemplate = 'ubuntu', pollT = null;
+let deleteVmid = null, deleteVmRunning = false;
+let backupVmid = null, restoreVolid = null, restoreStorage = null;
+let vmHistory = {};
+let recentActions = [];
+let backupJobs = [], editingJobId = null;
+
+const g = id => document.getElementById(id);
+
+// ── Connection ──────────────────────────────────────────────────────────────
+function connect() {
+  const url = g('api-input').value.trim().replace(/\/$/,'');
+  const err = g('sb-err');
+  err.style.display = 'none';
+  fetch(url+'/api/health').then(r=>r.json()).then(d=>{
+    if(!d.ok) throw new Error('Backend não respondeu');
+    API=url; localStorage.setItem('pve_api',url);
+    g('setup').style.display='none';
+    g('app').style.display='grid';
+    g('sb-node').textContent=d.node||'pve01';
+    init();
+  }).catch(e=>{err.textContent='Erro: '+e.message;err.style.display='block';});
+}
+
+function init(){
+  refreshAll();
+  clearInterval(pollT);
+  pollT=setInterval(refreshAll,5000);
+  loadStorSel();
+}
+
+if(API){
+  g('setup').style.display='none';
+  g('app').style.display='grid';
+  init();
+}
+
+function reconfig(){
+  localStorage.removeItem('pve_api');API='';clearInterval(pollT);
+  g('app').style.display='none';
+  g('setup').style.display='flex';
+}
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+const titles={dash:'Dashboard',vms:'Máquinas Virtuais',create:'Criar VM',storage:'Storage',backups:'Backups',logs:'Logs de VM'};
+function nav(p){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
+  g('sec-'+p).classList.add('on');
+  const navEls=document.querySelectorAll('.nav');
+  const idx=['dash','vms','create','storage','backups','logs','reconfig'].indexOf(p);
+  if(idx>=0&&navEls[idx]) navEls[idx].classList.add('on');
+  g('ptitle').textContent=titles[p]||p;
+  if(p==='storage') loadSto();
+  if(p==='vms') renderTable('tb-vms',true);
+  if(p==='backups') initBackupsPage();
+  if(p==='logs') initLogsPage();
+}
+
+// ── Data refresh ────────────────────────────────────────────────────────────
+function refreshAll(){
+  g('ri').classList.add('spin');
+  Promise.all([loadNode(),refreshVMs()]).finally(()=>g('ri').classList.remove('spin'));
+}
+
+async function loadNode(){
+  try{
+    const d=await fetch(API+'/api/node/status',{cache:'no-store'}).then(r=>r.json());
+    const s=d.status;
+    const cp=Math.round(s.cpu*100),mp=Math.round(s.memory.used/s.memory.total*100),dp=Math.round(s.rootfs.used/s.rootfs.total*100);
+    g('m-cpu').textContent=cp+'%';
+    g('m-cpu-s').textContent=(s.cpuinfo?.cpus||'?')+' CPUs · '+(s.cpuinfo?.model?.split(' ').slice(0,3).join(' ')||'');
+    g('mb-cpu').style.width=cp+'%';
+    g('m-mem').textContent=mp+'%';
+    g('m-mem-s').textContent=(s.memory.used/1073741824).toFixed(1)+' / '+(s.memory.total/1073741824).toFixed(1)+' GiB';
+    g('mb-mem').style.width=mp+'%';
+    g('m-disk').textContent=dp+'%';
+    g('m-disk-s').textContent=(s.rootfs.used/1073741824).toFixed(1)+' / '+(s.rootfs.total/1073741824).toFixed(1)+' GiB';
+    g('mb-disk').style.width=dp+'%';
+    const up=s.uptime;
+    g('tb-tag').textContent='↑ '+Math.floor(up/86400)+'d '+Math.floor((up%86400)/3600)+'h';
+    g('tb-cpu-val').textContent=cp+'%';
+    g('tb-cpu-stat').style.display='flex';
+    g('tb-updated').style.display='flex';
+    g('tb-updated-val').textContent=new Date().toLocaleTimeString('pt-BR');
+    setConn(true);
+  }catch(e){setConn(false);}
+}
+
+async function refreshVMs(){
+  try{
+    vms=await fetch(API+'/api/vms',{cache:'no-store'}).then(r=>r.json());
+    if(!Array.isArray(vms)) vms=[];
+    const run=vms.filter(v=>v.status==='running'&&!v.template).length;
+    const total=vms.filter(v=>!v.template).length;
+    g('m-vms').textContent=run+' / '+total;
+    g('m-vms-s').textContent=run+' rodando · '+(total-run)+' paradas';
+    g('nb-vms').textContent=run;
+    g('tb-vm-count').textContent=run+'/'+total;
+    g('tb-vm-stat').style.display='flex';
+    // track history
+    vms.forEach(vm=>{
+      if(!vmHistory[vm.vmid]) vmHistory[vm.vmid]={cpu:[],mem:[]};
+      const h=vmHistory[vm.vmid];
+      h.cpu.push(vm.status==='running'?Math.round((vm.cpu||0)*100):0);
+      h.mem.push(vm.maxmem>0?Math.round(vm.mem/vm.maxmem*100):0);
+      if(h.cpu.length>20){h.cpu.shift();h.mem.shift();}
+    });
+    renderVMCards();
+    renderTable('tb-vms',true);
+    setConn(true);
+  }catch(e){setConn(false);}
+}
+
+function setConn(ok){
+  g('cdot').className='cdot'+(ok?'':' off');
+  g('ctxt').textContent=ok?'Conectado':'Sem conexão';
+}
+
+// ── Score calculation ───────────────────────────────────────────────────────
+function calcScore(vm){
+  if(vm.status!=='running') return 0;
+  const cpu=Math.round((vm.cpu||0)*100);
+  const mem=vm.maxmem>0?Math.round(vm.mem/vm.maxmem*100):0;
+  const cpuScore=Math.max(0,100-cpu*1.2);
+  const memScore=Math.max(0,100-mem*.8);
+  return Math.round((cpuScore*.5+memScore*.5));
+}
+
+function scoreColor(s){
+  if(s>=75) return 'var(--green)';
+  if(s>=50) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function scoreGrade(s){
+  if(s>=80) return 'Excelente';
+  if(s>=65) return 'Bom';
+  if(s>=50) return 'Regular';
+  if(s>0)   return 'Crítico';
+  return 'Offline';
+}
+
+// ── Gauge SVG ───────────────────────────────────────────────────────────────
+function makeGaugeSVG(pct, color){
+  const r=32, cx=40, cy=40;
+  const circ=2*Math.PI*r;
+  const dash=circ*pct/100;
+  return `<svg class="gauge-svg" viewBox="0 0 80 80">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--bg3)" stroke-width="6"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
+      stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round"
+      transform="rotate(-90 ${cx} ${cy})"/>
+    <text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="12" font-weight="700"
+      fill="var(--txt)" font-family="'IBM Plex Mono'">${pct}%</text>
+  </svg>`;
+}
+
+// ── Sparkline SVG ───────────────────────────────────────────────────────────
+function makeSparkline(data, color){
+  if(!data||data.length<2) return `<svg class="mini-chart" viewBox="0 0 60 22"><line x1="0" y1="11" x2="60" y2="11" stroke="var(--bg3)" stroke-width="1"/></svg>`;
+  const w=60,h=22,pad=2;
+  const max=Math.max(...data,1);
+  const pts=data.map((v,i)=>{
+    const x=pad+(i/(data.length-1))*(w-pad*2);
+    const y=h-pad-((v/max)*(h-pad*2));
+    return`${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const last=data[data.length-1];
+  const lx=parseFloat(pts.split(' ').pop().split(',')[0]);
+  const ly=parseFloat(pts.split(' ').pop().split(',')[1]);
+  return `<svg class="mini-chart" viewBox="0 0 60 22">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>
+    <circle cx="${lx}" cy="${ly}" r="2" fill="${color}"/>
+  </svg>`;
+}
+
+// ── VM Cards ────────────────────────────────────────────────────────────────
+function vmIco(name){
+  const n=(name||'').toLowerCase();
+  if(n.includes('ubuntu')||n.includes('linux')||n.includes('srv')) return['il','LNX'];
+  if(n.includes('win')) return['iw','WIN'];
+  if(n.includes('ct')||n.includes('tail')) return['ic','CT'];
+  return['iv','VM'];
+}
+
+function renderVMCards(){
+  const container=g('vm-cards');
+  if(!container) return;
+  const displayVms=vms.filter(v=>!v.template);
+  if(!displayVms.length){
+    container.innerHTML='<div style="color:var(--txt3);font-family:var(--fm);font-size:12px;padding:1rem;grid-column:1/-1">Nenhuma VM encontrada</div>';
+    return;
+  }
+  container.innerHTML=displayVms.map(vm=>{
+    const run=vm.status==='running';
+    const cpu=run?Math.round((vm.cpu||0)*100):0;
+    const mp=vm.maxmem>0?Math.round(vm.mem/vm.maxmem*100):0;
+    const score=run?calcScore(vm):0;
+    const scColor=run?scoreColor(score):'var(--txt3)';
+    const [ico,lbl]=vmIco(vm.name);
+    const stCls=vm.status==='running'?'sr':vm.status==='paused'?'sp':'ss';
+    const up=vm.uptime?fmtUp(vm.uptime):'—';
+    const cpuGauge=makeGaugeSVG(cpu, cpu>80?'var(--red)':cpu>60?'var(--amber)':'var(--blue)');
+    const memGauge=makeGaugeSVG(mp, mp>80?'var(--red)':mp>60?'var(--amber)':'var(--green)');
+    const hist=vmHistory[vm.vmid]||{cpu:[],mem:[]};
+    const cpuSpark=makeSparkline(hist.cpu,'var(--blue)');
+    const memSpark=makeSparkline(hist.mem,'var(--green)');
+    const mg=(vm.mem/1073741824).toFixed(1),maxg=(vm.maxmem/1073741824).toFixed(1);
+    return`<div class="vm-card">
+      <div class="vc-head">
+        <div class="vc-info">
+          <div class="vico ${ico}">${lbl}</div>
+          <div>
+            <div class="vc-name">${vm.name}</div>
+            <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
+              <span class="st ${stCls}" style="font-size:9px;padding:2px 6px"><span class="st-dot"></span>${vm.status}</span>
+            </div>
+          </div>
+        </div>
+        ${run?`<div class="vc-score"><div class="vc-score-val" style="color:${scColor}">${score}</div><div class="vc-score-lbl">Score</div></div>`:''}
+      </div>
+      <div class="vc-gauges">
+        <div class="gauge-wrap">${cpuGauge}<div class="gauge-lbl">CPU</div></div>
+        <div class="gauge-wrap">${memGauge}<div class="gauge-lbl">RAM</div></div>
+      </div>
+      ${run?`<div class="vc-mini">
+        <div class="mini-row">
+          <svg class="mini-ico" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+          <span class="mini-lbl" style="color:var(--blue)">CPU</span>
+          ${cpuSpark}
+        </div>
+        <div class="mini-row">
+          <svg class="mini-ico" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          <span class="mini-lbl" style="color:var(--green)">RAM</span>
+          ${memSpark}
+        </div>
+      </div>`:''}
+      <div class="vc-foot">
+        <div>
+          <div class="vc-ram-txt">${run?`${mg} / ${maxg} GB`:`${maxg} GB alocado`}</div>
+          <div class="vc-uptime">${run?`↑ ${up} · ID ${vm.vmid}`:`ID ${vm.vmid}`}</div>
+        </div>
+        <div class="vc-acts">
+          ${run
+            ?`<button class="btn btn-stop" onclick="vmAct(${vm.vmid},'shutdown')" title="Parar"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+              <button class="btn" onclick="vmAct(${vm.vmid},'reboot')" title="Reiniciar">↺</button>`
+            :`<button class="btn btn-start" onclick="vmAct(${vm.vmid},'start')" title="Iniciar"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></button>`}
+          <button class="btn btn-con" onclick="openConsole(${vm.vmid})" title="Console"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10l4 4-4 4"/></svg></button>
+          <button class="btn" onclick="openEdit(${vm.vmid})" title="Editar">✎</button>
+          <button class="btn btn-bkp" onclick="openCreateBackup(${vm.vmid})" title="Backup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+          <button class="btn" onclick="goToVMLogs(${vm.vmid})" title="Ver Logs"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></button>
+          <button class="btn btn-del" onclick="openDelete(${vm.vmid})" title="Excluir"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ── Recent actions log ───────────────────────────────────────────────────────
+function addRecentAction(type, msg){
+  recentActions.unshift({type,msg,time:new Date().toTimeString().slice(0,5)});
+  if(recentActions.length>8) recentActions.pop();
+  renderRecentActions();
+}
+
+function renderRecentActions(){
+  const el=g('mig-list');if(!el) return;
+  if(!recentActions.length){el.innerHTML='<div class="mig-empty">Nenhuma ação recente</div>';return;}
+  el.innerHTML=recentActions.map(a=>{
+    const col=a.type==='ok'?'var(--green)':a.type==='err'?'var(--red)':'var(--blue)';
+    const ico=a.type==='ok'?'✓':a.type==='err'?'✕':'↺';
+    return`<div class="mig-item">
+      <div style="width:18px;height:18px;border-radius:50%;background:${a.type==='ok'?'var(--greenb)':a.type==='err'?'var(--redb)':'var(--blueb)'};display:flex;align-items:center;justify-content:center;font-size:9px;color:${col};flex-shrink:0;font-weight:700">${ico}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:11px;font-family:var(--fm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(a.msg)}</div></div>
+      <div style="font-size:10px;color:var(--txt3);font-family:var(--fm);flex-shrink:0">${a.time}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── VM Table (All VMs page) ──────────────────────────────────────────────────
+function renderTable(id,showId){
+  const tb=g(id);if(!tb) return;
+  const list=vms.filter(v=>!v.template);
+  if(!list.length){tb.innerHTML=`<tr><td colspan="${showId?8:7}" style="text-align:center;color:var(--txt3);padding:2rem;font-family:var(--fm);font-size:12px">Nenhuma VM encontrada</td></tr>`;return;}
+  tb.innerHTML=list.map(vm=>{
+    const run=vm.status==='running';
+    const cpu=run?Math.round((vm.cpu||0)*100):0;
+    const mp=vm.maxmem>0?Math.round(vm.mem/vm.maxmem*100):0;
+    const dp=vm.maxdisk>0?Math.round(vm.disk/vm.maxdisk*100):0;
+    const mg=(vm.mem/1073741824).toFixed(1),dg=(vm.disk/1073741824).toFixed(1);
+    const[ico,lbl]=vmIco(vm.name);
+    const stCls=vm.status==='running'?'sr':vm.status==='paused'?'sp':'ss';
+    const up=vm.uptime?fmtUp(vm.uptime):'—';
+    return`<tr>
+      ${showId?`<td style="font-family:var(--fm);font-size:11px;color:var(--txt3)">${vm.vmid}</td>`:''}
+      <td><div class="vn-wrap"><div class="vico ${ico}">${lbl}</div><div><div class="vnm">${vm.name}</div><div class="vid">ID ${vm.vmid}</div></div></div></td>
+      <td><span class="st ${stCls}"><span class="st-dot"></span>${vm.status}</span></td>
+      <td>${run?`<div class="bw"><div class="bt"><div class="bf bb" style="width:${cpu}%"></div></div><span class="bv">${cpu}%</span></div>`:'<span style="color:var(--txt3);font-family:var(--fm);font-size:11px">—</span>'}</td>
+      <td>${run?`<div class="bw"><div class="bt"><div class="bf bgr" style="width:${mp}%"></div></div><span class="bv">${mg}G</span></div>`:`<span style="color:var(--txt3);font-family:var(--fm);font-size:11px">${(vm.maxmem/1073741824).toFixed(1)}G</span>`}</td>
+      <td><div class="bw"><div class="bt"><div class="bf bam" style="width:${dp}%"></div></div><span class="bv">${dg}G</span></div></td>
+      <td style="font-family:var(--fm);font-size:11px;color:var(--txt2)">${up}</td>
+      <td><div class="acts">
+        ${run
+          ?`<button class="btn btn-stop" onclick="vmAct(${vm.vmid},'shutdown')">Stop</button>
+            <button class="btn" onclick="vmAct(${vm.vmid},'reboot')">↺</button>`
+          :`<button class="btn btn-start" onclick="vmAct(${vm.vmid},'start')">Start</button>`}
+        <button class="btn btn-con" onclick="openConsole(${vm.vmid})">Console</button>
+        <button class="btn" onclick="openEdit(${vm.vmid})">Editar</button>
+        <button class="btn btn-bkp" onclick="openCreateBackup(${vm.vmid})">Backup</button>
+        <button class="btn" onclick="goToVMLogs(${vm.vmid})">Logs</button>
+        <button class="btn btn-del" onclick="openDelete(${vm.vmid})">Excluir</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── VM Actions ───────────────────────────────────────────────────────────────
+function fmtUp(s){
+  if(s<60) return s+'s';
+  if(s<3600) return Math.floor(s/60)+'m';
+  if(s<86400) return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
+  return Math.floor(s/86400)+'d '+Math.floor((s%86400)/3600)+'h';
+}
+
+async function vmAct(id,action){
+  const vm=vms.find(v=>v.vmid===id),nm=vm?.name||'VM '+id;
+  try{
+    await fetch(API+'/api/vms/'+id+'/'+action,{method:'POST'});
+    toast(nm+': '+action+' enviado','ok');
+    addRecentAction('ok',action+' → '+nm);
+    addLog('ok',nm+': '+action+' OK');
+    setTimeout(refreshVMs,2000);
+  }catch(e){toast('Erro: '+e.message,'err');addLog('err',e.message);}
+}
+
+function openConsole(id){
+  fetch(API+'/api/vms/'+id+'/console-url').then(r=>r.json()).then(d=>window.open(d.url,'_blank')).catch(()=>toast('Erro ao abrir console','err'));
+}
+
+function openEdit(id){
+  const vm=vms.find(v=>v.vmid===id);if(!vm)return;
+  editVmid=id;
+  g('edit-title').textContent='Editar: '+vm.name;
+  const cores=vm.cpus||2,mem=Math.round(vm.maxmem/1073741824)||2;
+  g('esl-cpu').value=cores;g('elv-cpu').textContent=cores+' cores';
+  g('esl-mem').value=mem;g('elv-mem').textContent=mem+' GiB';
+  g('esl-disk').value=0;g('elv-disk').textContent='Sem alteração';
+  g('edit-modal').classList.add('open');
+}
+
+async function applyEdit(){
+  const cores=+g('esl-cpu').value,mem=+g('esl-mem').value*1024,disk=+g('esl-disk').value;
+  const vm=vms.find(v=>v.vmid===editVmid);
+  closeM('edit-modal');
+  addLog('info','Editando '+(vm?.name||'')+': '+cores+' vCPU, '+(mem/1024)+' GiB');
+  try{
+    await fetch(API+'/api/vms/'+editVmid+'/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({cores,memory:mem})});
+    if(disk>0) await fetch(API+'/api/vms/'+editVmid+'/resize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({disk:'scsi0',size:'+'+disk+'G'})});
+    toast((vm?.name||'VM')+': atualizado','ok');
+    addRecentAction('ok','Edição aplicada → '+(vm?.name||'VM'));
+    addLog('ok',(vm?.name||'VM')+': edição aplicada');
+    setTimeout(refreshVMs,1500);
+  }catch(e){toast('Erro: '+e.message,'err');addLog('err',e.message);}
+}
+
+// ── Delete VM ────────────────────────────────────────────────────────────────
+function openDelete(id){
+  const vm=vms.find(v=>v.vmid===id);if(!vm) return;
+  deleteVmid=id;
+  deleteVmRunning=vm.status==='running';
+  g('del-vmname').textContent=vm.name;
+  g('del-vmid').textContent=vm.vmid;
+  g('del-sub').innerHTML='Você está prestes a excluir <strong>'+escHtml(vm.name)+'</strong> (ID <span>'+vm.vmid+'</span>). Esta ação é irreversível e todos os dados serão perdidos.';
+  g('del-running-warn').style.display=deleteVmRunning?'block':'none';
+  g('del-force-row').style.display=deleteVmRunning?'flex':'none';
+  g('del-force-chk').checked=false;
+  g('del-confirm-chk').checked=false;
+  g('del-ok-btn').disabled=true;
+  g('del-ok-btn').onclick=confirmDelete;
+  g('del-ok-btn').textContent='Excluir VM';
+  g('del-modal').classList.add('open');
+}
+
+async function confirmDelete(){
+  const vm=vms.find(v=>v.vmid===deleteVmid);
+  const force=g('del-force-chk').checked;
+  closeM('del-modal');
+  const nm=vm?.name||'VM '+deleteVmid;
+  toast('Excluindo '+nm+'...','info');
+  addRecentAction('info','Excluindo → '+nm);
+  try{
+    const url=API+'/api/vms/'+deleteVmid+(force?'?force=true':'');
+    const r=await fetch(url,{method:'DELETE'});
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    toast(nm+': excluída com sucesso','ok');
+    addRecentAction('ok','Excluída → '+nm);
+    setTimeout(refreshVMs,1500);
+  }catch(e){
+    toast('Erro ao excluir: '+e.message,'err');
+    addRecentAction('err','Erro excluir → '+nm);
+  }
+}
+
+// ── Create VM ────────────────────────────────────────────────────────────────
+function closeM(id){g(id).classList.remove('open');}
+
+function selTpl(t){
+  selTemplate=t;
+  g('tpl-u').classList.toggle('sel',t==='ubuntu');
+  g('tpl-w').classList.toggle('sel',t==='win');
+  g('pv-tpl').textContent=t==='ubuntu'?'Ubuntu 24.04':'Win Server 2025';
+}
+
+function syncSl(){
+  const cpu=+g('sl-cpu').value, mem=+g('sl-mem').value, dsk=+g('sl-disk').value;
+  g('num-cpu').value=cpu;
+  g('num-mem').value=mem;
+  g('num-disk').value=dsk;
+  g('pv-cpu').textContent=cpu+' vCPU';
+  g('pv-mem').textContent=mem+' GiB';
+  g('pv-mem-mb').textContent=(mem*1024)+' MiB';
+  g('pv-disk').textContent=dsk+' GiB';
+}
+
+function syncNum(which){
+  const cfg={
+    cpu:{sl:'sl-cpu',pv:'pv-cpu',slMax:16,min:1,max:128,fmt:v=>v+' vCPU'},
+    mem:{sl:'sl-mem',pv:'pv-mem',slMax:32,min:1,max:512,fmt:v=>v+' GiB'},
+    disk:{sl:'sl-disk',pv:'pv-disk',slMax:500,min:10,max:4000,fmt:v=>v+' GiB'},
+  };
+  const c=cfg[which];
+  let val=parseInt(g('num-'+which).value)||c.min;
+  val=Math.max(c.min,Math.min(c.max,val));
+  g('num-'+which).value=val;
+  g(c.sl).value=Math.min(val,c.slMax);
+  g(c.pv).textContent=c.fmt(val);
+  if(which==='mem') g('pv-mem-mb').textContent=(val*1024)+' MiB';
+}
+
+async function loadStorSel(){
+  try{
+    const st=await fetch(API+'/api/storage').then(r=>r.json());
+    const sel=g('f-stor');
+    const opts=st.filter(s=>s.active&&s.content&&(s.content.includes('images')||s.content.includes('rootdir')));
+    if(opts.length) sel.innerHTML=opts.map(s=>`<option value="${s.storage}"${s.storage==='local-lvm'?' selected':''}>${s.storage} (${s.type})</option>`).join('');
+  }catch(_){}
+}
+
+function createVM(){
+  const btn=g('create-btn');
+  const name=g('f-name').value.trim(),vmid=g('f-vmid').value;
+  const pass=g('f-pass').value,ssh=g('f-ssh').value.trim();
+  if(!name||!vmid){toast('Preencha nome e VMID','err');return;}
+  if(selTemplate==='ubuntu'&&!pass&&!ssh){toast('Informe senha ou SSH key','err');return;}
+  const body={vmid,name,cores:+g('num-cpu').value,memory:+g('num-mem').value*1024,diskSize:+g('num-disk').value,storage:g('f-stor').value,template:selTemplate,ciuser:g('f-user').value,cipassword:pass,sshkeys:ssh,ipconfig:g('f-ip').value,gateway:g('f-gw').value};
+  btn.disabled=true;
+  const tplName=selTemplate==='ubuntu'?'Ubuntu 24.04':'Win Server 2025';
+  g('prog-title').textContent='Criando '+name;
+  g('prog-sub').textContent=tplName+' · '+body.cores+' vCPU · '+(body.memory/1024)+' GiB · '+body.diskSize+' GiB disco';
+  g('prog-fill').style.width='0%';
+  g('prog-step').textContent='Iniciando...';
+  g('prog-step').className='ps';
+  g('prog-close').style.display='none';
+  g('prog-modal').classList.add('open');
+  addLog('info','Criando VM '+name+' (ID '+vmid+') — '+tplName);
+  fetch(API+'/api/vms/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(resp=>{
+      const reader=resp.body.getReader(),dec=new TextDecoder();
+      function read(){
+        reader.read().then(({done,value})=>{
+          if(done){btn.disabled=false;return;}
+          dec.decode(value).split('\n').forEach(line=>{
+            if(!line.startsWith('data:')) return;
+            try{
+              const d=JSON.parse(line.slice(5));
+              g('prog-fill').style.width=d.pct+'%';
+              g('prog-step').textContent=d.msg;
+              addLog(d.error?'err':d.done?'ok':'info',d.msg);
+              if(d.done){g('prog-step').className='ps done';g('prog-close').style.display='block';toast(name+' criada e iniciada!','ok');addRecentAction('ok','VM criada → '+name);refreshVMs();btn.disabled=false;}
+              if(d.error){g('prog-step').className='ps err';g('prog-close').style.display='block';btn.disabled=false;}
+            }catch(_){}
+          });
+          read();
+        });
+      }
+      read();
+    })
+    .catch(e=>{toast('Erro: '+e.message,'err');addLog('err',e.message);btn.disabled=false;closeM('prog-modal');});
+}
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+async function loadSto(){
+  try{
+    const st=await fetch(API+'/api/storage').then(r=>r.json());
+    g('sto-grid').innerHTML=st.map(s=>{
+      const pct=s.total>0?Math.round(s.used/s.total*100):0;
+      const used=s.used?(s.used/1073741824).toFixed(1)+'G':'—';
+      const total=s.total?(s.total/1073741824).toFixed(1)+'G':'—';
+      const col=pct>80?'var(--red)':pct>60?'var(--amber)':'var(--green)';
+      return`<div class="sto-c"><div class="sto-nm">${s.storage}</div><div class="sto-ty">${s.type} · ${s.content||''}</div><div class="bw"><div class="bt" style="flex:1"><div class="bf" style="width:${pct}%;background:${col}"></div></div><span style="font-size:10px;color:var(--txt2);font-family:var(--fm)">${used}/${total}</span></div></div>`;
+    }).join('');
+  }catch(e){addLog('err','Storage: '+e.message);}
+}
+
+// ── Backups ───────────────────────────────────────────────────────────────────
+async function initBackupsPage(){
+  const sel=g('bkp-vm-sel');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">Selecionar VM...</option>';
+  vms.filter(v=>!v.template).forEach(v=>{
+    const o=document.createElement('option');
+    o.value=v.vmid;
+    o.textContent=v.name+' ('+v.vmid+')';
+    sel.appendChild(o);
+  });
+  if(prev) sel.value=prev;
+  // Garante que a aba "Backups" está ativa na primeira abertura
+  const jobsTabActive=g('tp-jobs').classList.contains('on');
+  if(jobsTabActive) loadBackupJobs();
+}
+
+async function loadBackups(){
+  const vmid=g('bkp-vm-sel').value;
+  const btn=g('bkp-create-btn');
+  if(!vmid){g('bkp-list').innerHTML='<div class="bkp-empty">Selecione uma VM para ver seus backups</div>';btn.style.display='none';return;}
+  btn.style.display='inline-flex';
+  btn.onclick=()=>openCreateBackup(parseInt(vmid));
+  g('bkp-list').innerHTML='<div class="bkp-empty"><span class="spin" style="display:inline-block;margin-right:6px">↺</span> Carregando...</div>';
+  try{
+    const backups=await fetch(API+'/api/vms/'+vmid+'/backups').then(r=>r.json());
+    if(!backups.length){g('bkp-list').innerHTML='<div class="bkp-empty">Nenhum backup encontrado para esta VM</div>';return;}
+    const totalSize=backups.reduce((acc,b)=>acc+(b.size||0),0);
+    const totalSizeStr=(totalSize/1073741824).toFixed(2)+' GB';
+    const latestDate=backups[0].ctime?new Date(backups[0].ctime*1000).toLocaleString('pt-BR'):'—';
+    g('bkp-list').innerHTML=`
+      <div class="bkp-stat">
+        <span class="bkp-stat-item"><strong>${backups.length}</strong> backup${backups.length!==1?'s':''}</span>
+        <span class="bkp-stat-item">Tamanho total: <strong>${totalSizeStr}</strong></span>
+        <span class="bkp-stat-item">Último: <strong>${latestDate}</strong></span>
+      </div>
+      <div class="bkp-grid" style="padding:1rem">${backups.map(b=>{
+        const date=b.ctime?new Date(b.ctime*1000).toLocaleString('pt-BR'):'—';
+        const size=b.size?(b.size/1073741824).toFixed(2)+' GB':'—';
+        const name=(b.volid||b.name||'backup').split('/').pop();
+        return`<div class="bkp-row">
+          <div class="bkp-info">
+            <div class="bkp-name" title="${escHtml(b.volid||'')}">${escHtml(name)}</div>
+            <div class="bkp-meta">${date} · ${escHtml(b.storage||'?')}</div>
+          </div>
+          <div class="bkp-size">${size}</div>
+          <div class="bkp-actions">
+            <button class="btn" onclick="openRestore('${encodeURIComponent(b.volid)}','${b.storage}',${vmid})">Restaurar</button>
+            <button class="btn btn-del" onclick="openDeleteBackup('${encodeURIComponent(b.volid)}','${b.storage}')">✕ Excluir</button>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+  }catch(e){g('bkp-list').innerHTML=`<div class="bkp-empty">Erro: ${escHtml(e.message)}</div>`;}
+}
+
+async function openCreateBackup(vmid){
+  backupVmid=vmid||parseInt(g('bkp-vm-sel')?.value)||null;
+  if(!backupVmid){toast('Selecione uma VM','err');return;}
+  const vm=vms.find(v=>v.vmid===backupVmid);
+  g('bkp-modal-sub').textContent='VM: '+(vm?.name||backupVmid)+' (ID '+backupVmid+')';
+  try{
+    const st=await fetch(API+'/api/storage').then(r=>r.json());
+    const bkpSt=st.filter(s=>s.active&&s.content&&s.content.includes('backup'));
+    const sel=g('bkp-stor-sel');
+    sel.innerHTML=bkpSt.length?bkpSt.map(s=>`<option value="${s.storage}">${s.storage} (${s.type})</option>`).join(''):'<option value="local">local</option>';
+  }catch(_){g('bkp-stor-sel').innerHTML='<option value="local">local</option>';}
+  g('bkp-modal').classList.add('open');
+}
+
+async function submitBackup(){
+  if(!backupVmid) return;
+  const storage=g('bkp-stor-sel').value;
+  const mode=g('bkp-mode-sel').value;
+  const compress=g('bkp-comp-sel').value;
+  const notes=g('bkp-notes').value;
+  closeM('bkp-modal');
+  const vm=vms.find(v=>v.vmid===backupVmid);
+  const nm=vm?.name||'VM '+backupVmid;
+  toast('Iniciando backup de '+nm+'...','info');
+  addRecentAction('info','Backup iniciado → '+nm);
+  try{
+    const r=await fetch(API+'/api/vms/'+backupVmid+'/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storage,mode,compress,notes})});
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    toast(nm+': backup iniciado (task: '+d.upid?.slice(0,20)+'...)','ok');
+    addRecentAction('ok','Backup OK → '+nm);
+    g('bkp-notes').value='';
+  }catch(e){toast('Erro no backup: '+e.message,'err');addRecentAction('err','Erro backup → '+nm);}
+}
+
+async function openRestore(volid, storage, vmid){
+  restoreVolid=decodeURIComponent(volid);
+  restoreStorage=storage;
+  g('restore-sub').textContent='Restaurar backup para VM ID '+vmid+' | Storage: '+storage;
+  g('restore-confirm-chk').checked=false;
+  g('restore-ok-btn').disabled=true;
+  try{
+    const st=await fetch(API+'/api/storage').then(r=>r.json());
+    const imgSt=st.filter(s=>s.active&&s.content&&(s.content.includes('images')||s.content.includes('rootdir')));
+    const sel=g('restore-stor-sel');
+    sel.innerHTML=imgSt.length?imgSt.map(s=>`<option value="${s.storage}"${s.storage==='local-lvm'?' selected':''}>${s.storage} (${s.type})</option>`).join(''):'<option value="local-lvm">local-lvm</option>';
+  }catch(_){g('restore-stor-sel').innerHTML='<option value="local-lvm">local-lvm</option>';}
+  g('restore-modal').classList.add('open');
+}
+
+async function confirmRestore(){
+  closeM('restore-modal');
+  toast('Restaurando backup...','info');
+  addRecentAction('info','Restore iniciado');
+  try{
+    const vmid=g('bkp-vm-sel').value;
+    const storage=g('restore-stor-sel').value;
+    const r=await fetch(API+'/api/backups/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({volid:restoreVolid,vmid,storage})});
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    toast('Restauração iniciada com sucesso!','ok');
+    addRecentAction('ok','Restore OK');
+  }catch(e){toast('Erro na restauração: '+e.message,'err');addRecentAction('err','Erro restore');}
+}
+
+let _delBkpVolid=null,_delBkpStorage=null;
+function openDeleteBackup(volid,storage){
+  _delBkpVolid=decodeURIComponent(volid);
+  _delBkpStorage=storage;
+  const name=_delBkpVolid.split('/').pop();
+  g('del-vmname').textContent=name;
+  g('del-vmid').textContent=storage;
+  g('del-sub').innerHTML='Você está prestes a excluir o backup <strong>'+escHtml(name)+'</strong> do storage <strong>'+escHtml(storage)+'</strong>. Esta ação é irreversível.';
+  g('del-running-warn').style.display='none';
+  g('del-force-row').style.display='none';
+  g('del-confirm-chk').checked=false;
+  g('del-ok-btn').disabled=true;
+  g('del-ok-btn').onclick=confirmDeleteBackup;
+  g('del-ok-btn').textContent='Excluir Backup';
+  g('del-modal').classList.add('open');
+}
+
+async function confirmDeleteBackup(){
+  closeM('del-modal');
+  g('del-ok-btn').onclick=confirmDelete;
+  try{
+    const r=await fetch(API+'/api/backups',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({volid:_delBkpVolid,storage:_delBkpStorage})});
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    toast('Backup excluído','ok');
+    addRecentAction('ok','Backup excluído');
+    loadBackups();
+  }catch(e){toast('Erro: '+e.message,'err');}
+  _delBkpVolid=null;_delBkpStorage=null;
+}
+
+async function deleteBackup(volid,storage){openDeleteBackup(volid,storage);}
+
+// ── Logs ──────────────────────────────────────────────────────────────────────
+function addLog(t,msg){
+  const el=g('log-body');if(!el) return;
+  const now=new Date().toTimeString().slice(0,8);
+  const cls={ok:'lok',err:'lerr',info:'linfo',warn:'lwarn'}[t]||'';
+  el.innerHTML+=`<div class="ll"><span class="lt">${now}</span><span class="${cls}">${msg}</span></div>`;
+  el.scrollTop=el.scrollHeight;
+}
+function clearLog(){g('log-body').innerHTML='';}
+
+// ── Backup tab switcher ───────────────────────────────────────────────────────
+function switchBkpTab(tab){
+  ['bkp','jobs'].forEach(t=>{
+    g('tab-'+t).classList.toggle('on',t===tab);
+    g('tp-'+t).classList.toggle('on',t===tab);
+  });
+  if(tab==='jobs') loadBackupJobs();
+}
+
+// ── Backup Jobs / Schedules ───────────────────────────────────────────────────
+const dayLabels={mon:'Seg',tue:'Ter',wed:'Qua',thu:'Qui',fri:'Sex',sat:'Sáb',sun:'Dom'};
+const dayOrder=['mon','tue','wed','thu','fri','sat','sun'];
+
+function fmtSchedule(s){
+  if(!s) return '—';
+  if(s==='daily'||s==='daily 00:00') return 'Todos os dias';
+  if(s==='weekly') return 'Semanal (Seg)';
+  if(s==='monthly') return 'Mensal (dia 1)';
+  const parts=s.trim().split(/\s+/);
+  if(parts.length===2){
+    const dayPart=parts[0], timePart=parts[1];
+    if(dayPart==='daily') return 'Diário às '+timePart;
+    if(dayPart==='monthly') return 'Mensal às '+timePart;
+    const days=dayPart.split(',').map(d=>dayLabels[d]||d).join(', ');
+    return days+' às '+timePart;
+  }
+  if(parts.length===1&&s.includes(':')) return 'Diário às '+s;
+  return s;
+}
+
+function fmtRetention(j){
+  const parts=[];
+  if(+j['keep-last']>0)    parts.push('últimos: '+j['keep-last']);
+  if(+j['keep-hourly']>0)  parts.push('hora: '+j['keep-hourly']);
+  if(+j['keep-daily']>0)   parts.push('dia: '+j['keep-daily']);
+  if(+j['keep-weekly']>0)  parts.push('semana: '+j['keep-weekly']);
+  if(+j['keep-monthly']>0) parts.push('mês: '+j['keep-monthly']);
+  if(+j['keep-yearly']>0)  parts.push('ano: '+j['keep-yearly']);
+  return parts.length?parts.join(' · '):'Sem regra';
+}
+
+function vmNamesForJob(vmidStr){
+  if(!vmidStr) return 'Todas as VMs';
+  const ids=vmidStr.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!ids.length) return 'Todas as VMs';
+  const names=ids.map(id=>{
+    const vm=vms.find(v=>String(v.vmid)===id);
+    return vm?vm.name+' ('+id+')':'VM '+id;
+  });
+  if(names.length<=3) return names.join(', ');
+  return names.slice(0,3).join(', ')+' <span style="color:var(--txt3)">e mais '+(names.length-3)+'</span>';
+}
+
+async function loadBackupJobs(){
+  const el=g('jobs-list');
+  el.innerHTML='<div class="job-empty"><span class="spin" style="display:inline-block;margin-right:6px">↺</span> Carregando agendamentos...</div>';
+  try{
+    const jobs=await fetch(API+'/api/backup-jobs').then(r=>r.json());
+    backupJobs=Array.isArray(jobs)?jobs:[];
+    if(!backupJobs.length){
+      el.innerHTML='<div class="job-empty">Nenhum agendamento configurado.<br><span style="font-size:11px">Clique em "+ Novo Agendamento" para criar.</span></div>';
+      return;
+    }
+    el.innerHTML=backupJobs.map(j=>{
+      const sched=fmtSchedule(j.schedule);
+      const enabled=j.enabled!==0&&j.enabled!=='0';
+      const vmDisplay=vmNamesForJob(j.vmid);
+      const ret=fmtRetention(j);
+      const compressLabel={zstd:'ZSTD',lzo:'LZO',gzip:'GZIP','0':'Sem compressão'}[j.compress||'zstd']||(j.compress||'—');
+      const modeLabel={snapshot:'Snapshot',suspend:'Suspend',stop:'Stop'}[j.mode||'snapshot']||(j.mode||'—');
+      const jid=escHtml(j.id||'');
+      return`<div class="job-row">
+        <div style="min-width:0;flex:1">
+          <div class="job-sched">${escHtml(sched)}</div>
+          <div class="job-meta" style="margin-top:5px">
+            <span title="Storage">${escHtml(j.storage||'—')}</span>
+            <span title="Modo · Compressão">${escHtml(modeLabel)} · ${escHtml(compressLabel)}</span>
+            <span title="Retenção" style="color:var(--amber)">${escHtml(ret)}</span>
+            ${j.comment?`<span title="Comentário" style="color:var(--txt2)">${escHtml(j.comment)}</span>`:''}
+          </div>
+          <div style="margin-top:6px;font-size:11px;font-family:var(--fm);color:var(--txt2);display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--txt3);flex-shrink:0"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+            ${vmDisplay}
+          </div>
+        </div>
+        <div class="job-acts">
+          <label class="toggle" title="${enabled?'Clique para desativar':'Clique para ativar'}">
+            <input type="checkbox" ${enabled?'checked':''} onchange="toggleJob('${jid}',this.checked)">
+            <span class="toggle-sl"></span>
+          </label>
+          <button class="btn" onclick="openEditJob('${jid}')" title="Editar agendamento">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-del" onclick="deleteJob('${jid}')" title="Excluir agendamento">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    el.innerHTML=`<div class="job-empty" style="color:var(--red)">Erro: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function toggleJob(id,enabled){
+  try{
+    await fetch(API+'/api/backup-jobs/'+encodeURIComponent(id),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled?1:0})});
+    toast('Agendamento '+(enabled?'ativado':'desativado'),'ok');
+    addRecentAction('ok','Agendamento '+(enabled?'ativado':'desativado'));
+  }catch(e){toast('Erro: '+e.message,'err');loadBackupJobs();}
+}
+
+async function deleteJob(id){
+  g('del-sub').innerHTML='Você está prestes a excluir o agendamento <strong>'+escHtml(id)+'</strong>. Os backups já realizados não serão apagados.';
+  g('del-running-warn').style.display='none';
+  g('del-force-row').style.display='none';
+  g('del-confirm-chk').checked=false;
+  g('del-ok-btn').disabled=true;
+  g('del-ok-btn').textContent='Excluir Agendamento';
+  g('del-ok-btn').onclick=async()=>{
+    closeM('del-modal');
+    g('del-ok-btn').onclick=confirmDelete;
+    try{
+      const r=await fetch(API+'/api/backup-jobs/'+encodeURIComponent(id),{method:'DELETE'});
+      const d=await r.json();
+      if(d.error) throw new Error(d.error);
+      toast('Agendamento excluído','ok');
+      addRecentAction('ok','Agendamento excluído');
+      loadBackupJobs();
+    }catch(e){toast('Erro: '+e.message,'err');}
+  };
+  g('del-modal').classList.add('open');
+}
+
+function parseScheduleStr(s){
+  if(!s) return {freq:'daily',hour:'03',minute:'00',days:[]};
+  const parts=s.trim().split(/\s+/);
+  let dayPart='',timePart='';
+  if(parts.length>=2){dayPart=parts[0];timePart=parts[1];}
+  else if(s.includes(':')) timePart=s;
+  else dayPart=s;
+  const [hh,mm]=(timePart||'03:00').split(':');
+  const hour=String(parseInt(hh)||3).padStart(2,'0');
+  const minute=(['00','15','30','45'].includes(mm)?mm:'00');
+  let freq='custom',days=[];
+  if(!dayPart||dayPart==='daily'){freq='daily';}
+  else if(dayPart==='monthly'){freq='monthly';}
+  else if(dayPart==='weekly'){freq='weekly';}
+  else{
+    days=dayPart.split(',').map(d=>d.trim()).filter(Boolean);
+    const ds=new Set(days);
+    const wd=['mon','tue','wed','thu','fri'];
+    if(wd.every(d=>ds.has(d))&&ds.size===5) freq='workdays';
+    else if(ds.has('sat')&&ds.has('sun')&&ds.size===2) freq='weekend';
+    else if(ds.has('mon')&&ds.size===1) freq='weekly';
+    else freq='custom';
+  }
+  return{freq,hour,minute,days};
+}
+
+async function populateJobForm(j){
+  // Storage
+  try{
+    const st=await fetch(API+'/api/storage').then(r=>r.json());
+    const bkpSt=st.filter(s=>s.active&&s.content&&s.content.includes('backup'));
+    g('job-storage').innerHTML=bkpSt.length
+      ?bkpSt.map(s=>`<option value="${s.storage}">${s.storage} (${s.type})</option>`).join('')
+      :'<option value="local">local</option>';
+  }catch(_){g('job-storage').innerHTML='<option value="local">local</option>';}
+  if(j.storage) g('job-storage').value=j.storage;
+
+  // VM table
+  const tbody=g('job-vm-tbody');
+  const selIds=j.vmid?j.vmid.split(',').map(s=>s.trim()).filter(Boolean):[];
+  tbody.innerHTML=vms.filter(v=>!v.template).map(v=>{
+    const stCls=v.status==='running'?'sr':v.status==='paused'?'sp':'ss';
+    const chk=selIds.includes(String(v.vmid))?'checked':'';
+    return`<tr onclick="this.querySelector('input').click()">
+      <td><input type="checkbox" value="${v.vmid}" ${chk} style="accent-color:var(--blue);width:14px;height:14px" onclick="event.stopPropagation();updateJobAllChk()"></td>
+      <td style="font-family:var(--fm);color:var(--txt2)">${v.vmid}</td>
+      <td><span class="st ${stCls}" style="font-size:9px;padding:2px 6px"><span class="st-dot"></span>${v.status}</span></td>
+      <td style="font-weight:600">${escHtml(v.name)}</td>
+      <td style="color:var(--txt3);font-size:11px">Virtual Machine</td>
+    </tr>`;
+  }).join('');
+
+  // Horas
+  g('job-hour').innerHTML=Array.from({length:24},(_,i)=>`<option value="${String(i).padStart(2,'0')}">${String(i).padStart(2,'0')}h</option>`).join('');
+
+  // Schedule
+  const sched=parseScheduleStr(j.schedule||'');
+  g('job-freq').value=sched.freq;
+  g('job-hour').value=sched.hour;
+  g('job-minute').value=sched.minute;
+  const customVisible=sched.freq==='custom';
+  g('job-custom-section').style.display=customVisible?'block':'none';
+  document.querySelectorAll('#job-days .day-btn[data-day]').forEach(b=>{
+    b.classList.toggle('sel',customVisible&&sched.days.includes(b.dataset.day));
+  });
+  const allDaysSel=dayOrder.every(d=>sched.days.includes(d));
+  g('day-all-btn').classList.toggle('sel',!customVisible||allDaysSel);
+
+  // VM mode
+  const hasVmid=j.vmid&&j.vmid.trim();
+  g('job-vm-mode').value=hasVmid?'select':'all';
+  g('job-vm-list').style.display=hasVmid?'block':'none';
+  updateJobAllChk();
+
+  // Outros campos
+  g('job-mode').value=j.mode||'snapshot';
+  g('job-compress').value=j.compress||'zstd';
+  g('job-enabled').checked=j.enabled!==0&&j.enabled!=='0';
+  g('job-comment').value=j.comment||'';
+
+  // Retenção
+  ['last','hourly','daily','weekly','monthly','yearly'].forEach(k=>{
+    const el=g('job-keep-'+k);
+    if(el) el.value=j['keep-'+k]||0;
+  });
+
+  updateJobPreview();
+}
+
+async function openEditJob(id){
+  const job=backupJobs.find(j=>j.id===id);
+  if(!job){toast('Agendamento não encontrado','err');return;}
+  editingJobId=id;
+  g('job-modal-title').textContent='Editar Agendamento';
+  g('job-submit-btn').textContent='Salvar Alterações';
+  await populateJobForm(job);
+  g('job-modal').classList.add('open');
+}
+
+async function openCreateJob(){
+  editingJobId=null;
+  g('job-modal-title').textContent='Novo Agendamento de Backup';
+  g('job-submit-btn').textContent='Criar Agendamento';
+  await populateJobForm({
+    schedule:'daily 03:00', mode:'snapshot', compress:'zstd',
+    enabled:1, comment:'', vmid:'',
+    'keep-last':7,'keep-hourly':0,'keep-daily':0,'keep-weekly':0,'keep-monthly':0,'keep-yearly':0,
+  });
+  g('job-modal').classList.add('open');
+}
+
+function onFreqChange(){
+  const custom=g('job-freq').value==='custom';
+  g('job-custom-section').style.display=custom?'block':'none';
+  if(custom){
+    document.querySelectorAll('#job-days .day-btn[data-day]').forEach(b=>b.classList.add('sel'));
+    g('day-all-btn').classList.add('sel');
+  }
+  updateJobPreview();
+}
+
+function toggleJobVMList(){
+  g('job-vm-list').style.display=g('job-vm-mode').value==='select'?'block':'none';
+}
+
+function toggleAllVMs(chk){
+  document.querySelectorAll('#job-vm-tbody input[type=checkbox]').forEach(c=>c.checked=chk.checked);
+}
+
+function updateJobAllChk(){
+  const all=[...document.querySelectorAll('#job-vm-tbody input[type=checkbox]')];
+  g('job-vm-all-chk').checked=all.length>0&&all.every(c=>c.checked);
+}
+
+function toggleDay(btn){
+  btn.classList.toggle('sel');
+  const allSel=[...document.querySelectorAll('#job-days .day-btn[data-day]')].every(b=>b.classList.contains('sel'));
+  g('day-all-btn').classList.toggle('sel',allSel);
+  updateJobPreview();
+}
+
+function toggleAllDays(){
+  const btn=g('day-all-btn');
+  const on=!btn.classList.contains('sel');
+  document.querySelectorAll('#job-days .day-btn[data-day]').forEach(b=>b.classList.toggle('sel',on));
+  btn.classList.toggle('sel',on);
+  updateJobPreview();
+}
+
+function buildScheduleStr(){
+  const freq=g('job-freq').value;
+  const h=g('job-hour').value, m=g('job-minute').value;
+  const time=h+':'+m;
+  switch(freq){
+    case 'daily':     return 'daily '+time;
+    case 'workdays':  return 'mon,tue,wed,thu,fri '+time;
+    case 'weekend':   return 'sat,sun '+time;
+    case 'weekly':    return 'mon '+time;
+    case 'monthly':   return 'monthly '+time;
+    case 'custom':{
+      const sel=[...document.querySelectorAll('#job-days .day-btn[data-day].sel')].map(b=>b.dataset.day);
+      if(!sel.length) return null;
+      return (dayOrder.every(d=>sel.includes(d))?'daily':sel.join(','))+' '+time;
+    }
+  }
+  return 'daily '+time;
+}
+
+function updateJobPreview(){
+  const s=buildScheduleStr();
+  g('job-preview').textContent=s?fmtSchedule(s):'Selecione ao menos um dia';
+}
+
+async function submitJob(){
+  const schedule=buildScheduleStr();
+  if(!schedule){toast('Selecione ao menos um dia da semana','err');return;}
+  const storage=g('job-storage').value;
+  if(!storage){toast('Selecione um storage','err');return;}
+
+  let vmid='';
+  if(g('job-vm-mode').value==='select'){
+    const checked=[...document.querySelectorAll('#job-vm-tbody input:checked')].map(i=>i.value);
+    if(!checked.length){toast('Selecione ao menos uma VM','err');return;}
+    vmid=checked.join(',');
+  }
+
+  const body={
+    storage, schedule,
+    mode:     g('job-mode').value,
+    compress: g('job-compress').value,
+    enabled:  g('job-enabled').checked,
+    comment:  g('job-comment').value.trim(),
+    vmid,
+    'keep-last':    +g('job-keep-last').value||0,
+    'keep-hourly':  +g('job-keep-hourly').value||0,
+    'keep-daily':   +g('job-keep-daily').value||0,
+    'keep-weekly':  +g('job-keep-weekly').value||0,
+    'keep-monthly': +g('job-keep-monthly').value||0,
+    'keep-yearly':  +g('job-keep-yearly').value||0,
+  };
+
+  const isEdit=!!editingJobId;
+  closeM('job-modal');
+  toast((isEdit?'Salvando':'Criando')+' agendamento...','info');
+  try{
+    let r;
+    if(isEdit){
+      r=await fetch(API+'/api/backup-jobs/'+encodeURIComponent(editingJobId),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    }else{
+      r=await fetch(API+'/api/backup-jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    }
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    const label=fmtSchedule(schedule);
+    toast(isEdit?'Agendamento atualizado: '+label:'Agendamento criado: '+label,'ok');
+    addRecentAction('ok',(isEdit?'Agendamento editado':'Agendamento criado')+' → '+label);
+    editingJobId=null;
+    switchBkpTab('jobs');
+  }catch(e){
+    toast('Erro: '+e.message,'err');
+    editingJobId=null;
+  }
+}
+
+// ── Logs / Tasks ─────────────────────────────────────────────────────────────
+function goToVMLogs(vmid){
+  nav('logs');
+  const sel=g('logs-vm-sel');
+  sel.value=vmid;
+  loadVMTasks();
+}
+
+function initLogsPage(){
+  const sel=g('logs-vm-sel');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">Selecionar VM...</option>';
+  vms.filter(v=>!v.template).forEach(v=>{
+    const o=document.createElement('option');
+    o.value=v.vmid;
+    o.textContent=v.name+' ('+v.vmid+')';
+    sel.appendChild(o);
+  });
+  if(prev) sel.value=prev;
+  if(sel.value) loadVMTasks();
+}
+
+const taskTypeLabels={
+  qmstart:'Iniciar VM',qmstop:'Parar VM',qmshutdown:'Desligar VM',qmreboot:'Reiniciar VM',
+  qmclone:'Clonar VM',qmdestroy:'Excluir VM',qmconfig:'Configurar VM',qmresize:'Redimensionar',
+  vzdump:'Backup',qmrestore:'Restaurar',vzsnapshot:'Snapshot',qmsnapshot:'Snapshot',
+  qmrollback:'Rollback',qmmigrate:'Migrar VM',
+};
+
+function fmtTaskType(t){
+  const key=(t||'').toLowerCase();
+  return taskTypeLabels[key]||t||'Task';
+}
+
+function taskStatusClass(t){
+  if(!t.exitstatus&&t.status==='running') return 'sp';
+  if(t.exitstatus==='OK') return 'sr';
+  return 'ss';
+}
+
+async function loadVMTasks(){
+  const vmid=g('logs-vm-sel').value;
+  const container=g('tasks-list');
+  if(!vmid){
+    container.innerHTML='<div style="text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px">Selecione uma VM para ver o histórico de tarefas</div>';
+    return;
+  }
+  container.innerHTML='<div style="text-align:center;padding:2rem;color:var(--txt3);font-family:var(--fm);font-size:12px"><span class="spin" style="display:inline-block;margin-right:6px">↺</span> Carregando tarefas...</div>';
+  try{
+    const tasks=await fetch(API+'/api/vms/'+vmid+'/tasks').then(r=>r.json());
+    if(!Array.isArray(tasks)||!tasks.length){
+      container.innerHTML='<div style="text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px">Nenhuma tarefa encontrada para esta VM</div>';
+      return;
+    }
+    container.innerHTML=tasks.map(t=>{
+      const type=fmtTaskType(t.type);
+      const stCls=taskStatusClass(t);
+      const stTxt=t.exitstatus||(t.status==='running'?'Executando':'—');
+      const start=t.starttime?new Date(t.starttime*1000).toLocaleString('pt-BR'):'—';
+      const dur=(t.starttime&&t.endtime)?fmtUp(t.endtime-t.starttime):'—';
+      const upidEnc=encodeURIComponent(t.upid||'');
+      return`<div class="task-row">
+        <span class="task-type">${type}</span>
+        <span class="task-upid" title="${escHtml(t.upid||'')}">${escHtml((t.upid||'').split(':').slice(0,6).join(':'))}</span>
+        <span class="st ${stCls}" style="font-size:9px;padding:2px 7px;white-space:nowrap"><span class="st-dot"></span>${escHtml(stTxt)}</span>
+        <span class="task-time">${start}</span>
+        <span class="task-dur">${dur}</span>
+        <button class="btn" style="flex-shrink:0" onclick="viewTaskLog('${upidEnc}','${escHtml(type)}',${t.starttime||0})">Ver Log</button>
+      </div>`;
+    }).join('');
+  }catch(e){
+    container.innerHTML=`<div style="text-align:center;padding:2rem;color:var(--red);font-family:var(--fm);font-size:12px">Erro ao carregar tarefas: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function viewTaskLog(upid,type,starttime){
+  const modal=g('task-log-modal');
+  g('task-log-title').textContent='Log: '+type;
+  g('task-log-meta').textContent=starttime?new Date(starttime*1000).toLocaleString('pt-BR'):'';
+  g('task-log-status').innerHTML='';
+  g('task-log-body').innerHTML='<div style="color:var(--txt3)"><span class="spin" style="display:inline-block;margin-right:6px">↺</span> Carregando log...</div>';
+  modal.classList.add('open');
+  try{
+    const [log,status]=await Promise.all([
+      fetch(API+'/api/tasks/'+upid+'/log').then(r=>r.json()),
+      fetch(API+'/api/tasks/'+upid+'/status').then(r=>r.json()),
+    ]);
+    const stCls=status.exitstatus==='OK'?'sr':status.status==='running'?'sp':'ss';
+    const stTxt=status.exitstatus||(status.status==='running'?'Executando':'—');
+    g('task-log-status').innerHTML=`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="st ${stCls}" style="font-size:10px"><span class="st-dot"></span>${escHtml(stTxt)}</span>
+      ${status.starttime?`<span style="font-family:var(--fm);font-size:11px;color:var(--txt2)">Início: ${new Date(status.starttime*1000).toLocaleString('pt-BR')}</span>`:''}
+      ${(status.starttime&&status.endtime)?`<span style="font-family:var(--fm);font-size:11px;color:var(--txt3)">Duração: ${fmtUp(status.endtime-status.starttime)}</span>`:''}
+    </div>`;
+    const lines=Array.isArray(log)?log:[];
+    if(!lines.length){
+      g('task-log-body').innerHTML='<div style="color:var(--txt3)">Nenhum log disponível.</div>';
+      return;
+    }
+    g('task-log-body').innerHTML=lines.map(l=>{
+      const txt=l.t||l.text||JSON.stringify(l);
+      const lo=txt.toLowerCase();
+      const color=lo.includes('error')||lo.includes('failed')||lo.includes('erro')
+        ?'var(--red)'
+        :lo.includes('warn')
+          ?'var(--amber)'
+          :lo.includes('success')||lo.includes('ok')||lo.includes('done')||lo.includes('task ok')
+            ?'var(--green)'
+            :'var(--txt)';
+      return`<div class="log-line" style="color:${color}">${escHtml(txt)}</div>`;
+    }).join('');
+    g('task-log-body').scrollTop=g('task-log-body').scrollHeight;
+  }catch(e){
+    g('task-log-body').innerHTML=`<div style="color:var(--red)">Erro ao carregar log: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg,t='info'){
+  const s=g('toasts');
+  const el=document.createElement('div');
+  el.className=`toast t${t}`;
+  el.innerHTML=`<div class="tico">${{ok:'✓',err:'✕',info:'i'}[t]||'i'}</div><span>${msg}</span>`;
+  s.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('in')));
+  setTimeout(()=>{el.classList.remove('in');setTimeout(()=>el.remove(),300);},3500);
+}
+</script>
+</body>
+</html>
