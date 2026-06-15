@@ -2241,11 +2241,7 @@ let currentOSLogs=[], logsTab='tasks';
 
 function onLogsVmChange(){
   if(logsTab==='tasks') loadVMTasks();
-  else {
-    g('os-logs-output').style.display='none';
-    g('ai-os-analysis').style.display='none';
-    currentOSLogs=[];
-  }
+  else captureOSLogs();
 }
 
 function switchLogsTab(tab){
@@ -2255,6 +2251,7 @@ function switchLogsTab(tab){
     g('log-pane-'+t).classList.toggle('on',t===tab);
   });
   if(tab==='tasks') loadVMTasks();
+  else if(g('logs-vm-sel').value) captureOSLogs();
 }
 
 async function captureOSLogs(){
