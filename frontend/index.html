@@ -526,7 +526,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0
     </div>
     <div class="s-sec">
       <div class="s-lbl">Sistema</div>
-      <div class="nav" onclick="reconfig()">
+      <div class="nav" onclick="nav('settings')">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
         Configurações
       </div>
@@ -745,6 +745,31 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0
               <button class="btn btn-pri" onclick="openCreateJob()">+ Novo Agendamento</button>
             </div>
             <div id="jobs-list" style="padding:1rem"><div class="job-empty">Carregando...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="section" id="sec-settings">
+        <div style="max-width:600px">
+          <div class="card" style="margin-bottom:1.25rem">
+            <div class="card-h"><span class="card-t">Conexão</span></div>
+            <div style="padding:1.25rem">
+              <div style="font-size:12px;color:var(--txt2);font-family:var(--fm);margin-bottom:1rem">
+                Backend: <strong style="color:var(--txt)" id="cfg-api-url">—</strong>
+              </div>
+              <button class="btn btn-danger" onclick="reconfig()">Trocar Backend</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="card-t">Assistente IA</span></div>
+            <div style="padding:1.25rem">
+              <div style="font-size:12px;color:var(--txt2);font-family:var(--fm)">
+                Provedor: <strong style="color:var(--txt)">Groq — Llama 3.3 70B Versatile</strong>
+              </div>
+              <div id="cfg-ai-status" style="font-size:11px;font-family:var(--fm);margin-top:.5rem"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1074,13 +1099,13 @@ function reconfig(){
 }
 
 // ── Navigation ──────────────────────────────────────────────────────────────
-const titles={dash:'Dashboard',vms:'Máquinas Virtuais',create:'Criar VM',storage:'Storage',backups:'Backups',logs:'Logs de VM',ai:'Assistente IA'};
+const titles={dash:'Dashboard',vms:'Máquinas Virtuais',create:'Criar VM',storage:'Storage',backups:'Backups',logs:'Logs de VM',ai:'Assistente IA',settings:'Configurações'};
 function nav(p){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
   g('sec-'+p).classList.add('on');
   const navEls=document.querySelectorAll('.nav');
-  const idx=['dash','vms','create','storage','backups','logs','ai','reconfig'].indexOf(p);
+  const idx=['dash','vms','create','storage','backups','logs','ai','settings'].indexOf(p);
   if(idx>=0&&navEls[idx]) navEls[idx].classList.add('on');
   g('ptitle').textContent=titles[p]||p;
   if(p==='storage') loadSto();
@@ -1088,6 +1113,7 @@ function nav(p){
   if(p==='backups') initBackupsPage();
   if(p==='logs') initLogsPage();
   if(p==='ai') initAIChat();
+  if(p==='settings') initSettings();
 }
 
 // ── Data refresh ────────────────────────────────────────────────────────────
@@ -2322,7 +2348,7 @@ async function analyzeOSLogs(){
     const r=await fetch(API+'/api/ai/analyze-log',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({log:currentOSLogs,logSource:'os'}),
+      body:JSON.stringify({log:currentOSLogs.filter(l=>/emerg|alert|\[crit\]|\bcrit\b|\berr(or)?\b|\[err\]|\[error\]|failed|failure|warn(ing)?|\[warn\]|\[warning\]/i.test(l.t||'')).slice(0,2000),logSource:'os'}),
     });
     const d=await r.json();
     if(d.error) throw new Error(d.error);
@@ -2550,6 +2576,20 @@ async function analyzeCurrentLog(){
   }finally{
     btn.disabled=false;
     btn.innerHTML='✦ Analisar com IA';
+  }
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+async function initSettings(){
+  g('cfg-api-url').textContent=API||'—';
+  const status=g('cfg-ai-status');
+  try{
+    const r=await fetch(API+'/api/health').then(r=>r.json());
+    status.style.color=r.ok?'var(--green)':'var(--red)';
+    status.textContent=r.ok?'Conectado ao backend':'Backend indisponível';
+  }catch(_){
+    status.style.color='var(--red)';
+    status.textContent='Não foi possível verificar o backend';
   }
 }
 

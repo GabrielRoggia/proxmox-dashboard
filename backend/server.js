@@ -19,7 +19,7 @@ const pve   = axios.create({
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use('/api', (_, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -828,6 +828,54 @@ Quando recusar, use exatamente este formato:
 Para ações destrutivas irreversíveis (delete_vm, delete_backup, restore_vm_backup): mostre o que será feito e pergunte "Tem certeza?" antes de executar, se não houver confirmação explícita na mensagem.
 Ao listar VMs, mostre nome, ID, status e métricas principais formatadas de forma legível.`;
 
+function fmtSecs(s) {
+  s = Math.ceil(s);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60), r = s % 60;
+  return r ? `${m}min ${r}s` : `${m}min`;
+}
+
+function groqRetryWait(e) {
+  console.error('[groq-rate-limit] status:', e.status, '| headers:', JSON.stringify(e.headers), '| message:', e.message?.slice(0, 300));
+  // 1. retry-after header (float seconds)
+  const ra = e.headers?.['retry-after'];
+  if (ra != null) {
+    const s = parseFloat(ra);
+    if (!isNaN(s) && s > 0) return fmtSecs(s);
+  }
+  // 2. x-ratelimit-reset-* headers (format "1m30s" or "45s")
+  const reset = e.headers?.['x-ratelimit-reset-requests'] || e.headers?.['x-ratelimit-reset-tokens'];
+  if (reset) {
+    const m = reset.match(/(\d+)m/), s = reset.match(/(\d+)s/);
+    const total = (m ? +m[1] * 60 : 0) + (s ? +s[1] : 0);
+    if (total > 0) return fmtSecs(total);
+  }
+  // 3. parse error message body ("Please try again in 5.2s")
+  const msgMatch = (e.message || '').match(/try again in ([\d.]+)s/i) ||
+                   (e.message || '').match(/retry after ([\d.]+)/i);
+  if (msgMatch) return fmtSecs(parseFloat(msgMatch[1]));
+  return null;
+}
+
+function groqErrorMsg(e) {
+  const msg = e.message || '';
+  const status = e.status || e.statusCode || 0;
+  if (status === 429 || msg.includes('429') || msg.includes('rate_limit') || msg.includes('Rate limit')) {
+    const wait = groqRetryWait(e);
+    return `Limite de requisições do Groq atingido.${wait ? ` Tente novamente em ${wait}.` : ' Aguarde alguns instantes e tente novamente.'}`;
+  }
+  if (status === 401 || msg.includes('401') || msg.includes('invalid_api_key') || msg.includes('Incorrect API key')) {
+    return 'Chave da API do Groq inválida. Verifique GROQ_API_KEY em console.groq.com.';
+  }
+  if (status === 503 || msg.includes('503') || msg.includes('overloaded') || msg.includes('unavailable')) {
+    return 'Serviço Groq temporariamente indisponível. Tente novamente em alguns instantes.';
+  }
+  if (msg.includes('ECONNREFUSED') || msg.includes('ETIMEDOUT') || msg.includes('fetch failed')) {
+    return 'Não foi possível conectar à API do Groq. Verifique a conexão com a internet do servidor.';
+  }
+  return 'Erro Groq: ' + msg.slice(0, 200);
+}
+
 app.post('/api/ai/chat', async (req, res) => {
   if (!groq) {
     return res.status(503).json({ error: 'GROQ_API_KEY não configurada no servidor.' });
@@ -889,7 +937,7 @@ app.post('/api/ai/chat', async (req, res) => {
     sse({ type: 'done', history: messages });
     res.end();
   } catch (e) {
-    sse({ type: 'error', message: e.message });
+    sse({ type: 'error', message: groqErrorMsg(e) });
     res.end();
   }
 });
@@ -916,15 +964,15 @@ app.get('/api/vms/:id/os-logs', async (req, res) => {
           ' | Sort-Object TimeCreated -Descending' +
           ' | ForEach-Object { $_.TimeCreated.ToString("yyyy-MM-dd HH:mm:ss") + " [" + $_.LevelDisplayName.ToUpper() + "] " + $_.ProviderName + ": " + (($_.Message -split "`n")[0]) }']
       : ['/bin/bash', '-c',
-          'if journalctl -p 0..4 -n 1 --no-pager 2>/dev/null | grep -q .; then' +
+          'if journalctl -n 1 --no-pager 2>/dev/null | grep -q .; then' +
           ' echo "##SOURCE:journalctl##";' +
-          ' journalctl -p 0..4 --no-pager -n 300 -o short-iso --no-hostname --reverse 2>/dev/null;' +
+          ' journalctl --no-pager --since today -o short-iso --no-hostname --reverse 2>/dev/null;' +
           ' elif [ -s /var/log/syslog ]; then' +
           ' echo "##SOURCE:/var/log/syslog##";' +
-          ' grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/syslog | tail -n 300 | tac;' +
+          ' grep "$(date +\"%b %e\")" /var/log/syslog | tac;' +
           ' elif [ -s /var/log/messages ]; then' +
           ' echo "##SOURCE:/var/log/messages##";' +
-          ' grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/messages | tail -n 300 | tac;' +
+          ' grep "$(date +\"%b %e\")" /var/log/messages | tac;' +
           ' fi'];
 
     let execRes;
@@ -991,7 +1039,7 @@ app.post('/api/ai/analyze-log', async (req, res) => {
     });
     res.json({ analysis: completion.choices[0].message.content });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: groqErrorMsg(e) });
   }
 });
 
