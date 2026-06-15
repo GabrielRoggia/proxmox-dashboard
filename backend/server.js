@@ -876,25 +876,93 @@ app.post('/api/ai/chat', async (req, res) => {
   }
 });
 
+// ── OS LOGS via QEMU Guest Agent ──────────────────────────────────────────────
+app.get('/api/vms/:id/os-logs', async (req, res) => {
+  try {
+    const vmid = req.params.id;
+    const [current, config] = await Promise.all([
+      get(`/nodes/${NODE}/qemu/${vmid}/status/current`),
+      get(`/nodes/${NODE}/qemu/${vmid}/config`),
+    ]);
+
+    if (current.status !== 'running') {
+      return res.status(409).json({ error: 'VM não está em execução. Inicie a VM para capturar logs do SO.' });
+    }
+
+    const ostype = config.ostype || '';
+    const isWindows = ostype.startsWith('w');
+
+    const cmd = isWindows
+      ? ['powershell.exe', '-NonInteractive', '-Command',
+          'Get-WinEvent -FilterHashtable @{LogName="System","Application";Level=1,2,3} -MaxEvents 200 -ErrorAction SilentlyContinue' +
+          ' | Sort-Object TimeCreated -Descending' +
+          ' | ForEach-Object { $_.TimeCreated.ToString("yyyy-MM-dd HH:mm:ss") + " [" + $_.LevelDisplayName.ToUpper() + "] " + $_.ProviderName + ": " + (($_.Message -split "`n")[0]) }']
+      : ['/bin/bash', '-c',
+          'journalctl -p 0..4 --no-pager -n 300 -o short-iso --no-hostname 2>/dev/null' +
+          ' || grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/syslog 2>/dev/null | tail -n 300' +
+          ' || grep -Ei "(error|crit|emerg|alert|warn|fail)" /var/log/messages 2>/dev/null | tail -n 300'];
+
+    let execRes;
+    try {
+      execRes = await post(`/nodes/${NODE}/qemu/${vmid}/agent/exec`, { command: cmd });
+    } catch (e) {
+      const raw = e.response?.data?.errors ? JSON.stringify(e.response.data.errors) : e.message;
+      const lo = raw.toLowerCase();
+      if (lo.includes('agent') || lo.includes('not running') || lo.includes('enabled')) {
+        return res.status(503).json({ error: 'QEMU Guest Agent não está disponível. Instale e inicie o qemu-guest-agent na VM e habilite o agent nas configurações da VM.' });
+      }
+      throw e;
+    }
+
+    const pid = execRes.pid;
+    const t0 = Date.now();
+    let result = null;
+    while (Date.now() - t0 < 30000) {
+      await sleep(1500);
+      result = await get(`/nodes/${NODE}/qemu/${vmid}/agent/exec-status?pid=${pid}`);
+      if (result.exited) break;
+    }
+
+    if (!result?.exited) {
+      return res.status(504).json({ error: 'Timeout: o comando demorou mais de 30s para responder na VM.' });
+    }
+
+    const output = (result['out-data'] || '').trim();
+    const errOutput = (result['err-data'] || '').trim();
+
+    if (!output && errOutput) {
+      return res.status(500).json({ error: 'Erro no SO: ' + errOutput.slice(0, 400) });
+    }
+
+    const lines = output.split('\n').map(l => l.trim()).filter(l => l.length > 0).map(l => ({ t: l }));
+    res.json({ lines, ostype, isWindows, total: lines.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/ai/analyze-log', async (req, res) => {
   if (!groq) {
     return res.status(503).json({ error: 'GROQ_API_KEY não configurada no servidor.' });
   }
 
-  const { log, taskType } = req.body;
+  const { log, taskType, logSource } = req.body;
   if (!Array.isArray(log)) return res.status(400).json({ error: 'log é obrigatório' });
 
   const logText = log.map(l => l.t || l.text || JSON.stringify(l)).join('\n');
-  const trimmed = logText.length > 6000 ? logText.slice(-6000) : logText;
+  const isOS = logSource === 'os';
+  const maxChars = isOS ? 9000 : 6000;
+  const trimmed = logText.length > maxChars ? logText.slice(-maxChars) : logText;
+
+  const prompt = isOS
+    ? `Você é especialista em administração de servidores Linux/Windows e segurança. Analise estes logs do sistema operacional capturados via QEMU Guest Agent e responda em português:\n1. Quais são os problemas mais críticos identificados?\n2. Há padrões preocupantes (serviços falhando, erros de autenticação, problemas de disco/memória/rede)?\n3. Quais ações corretivas você recomenda priorizar?\n\nFoque nos eventos mais relevantes. Seja direto e técnico, responda em até 4 parágrafos.\n\nLogs do SO:\n${trimmed}`
+    : `Você é especialista em Proxmox VE. Analise este log de tarefa${taskType ? ' (' + taskType + ')' : ''} e responda em português:\n1. O que aconteceu (sucesso ou falha)?\n2. Se falhou, qual o motivo e como resolver?\n3. Alguma observação relevante?\n\nResponda de forma direta em até 3 parágrafos curtos.\n\nLog:\n${trimmed}`;
 
   try {
     const completion = await groq.chat.completions.create({
       model:      'llama-3.3-70b-versatile',
-      max_tokens: 512,
-      messages:   [{
-        role:    'user',
-        content: `Você é especialista em Proxmox VE. Analise este log de tarefa${taskType ? ' (' + taskType + ')' : ''} e responda em português:\n1. O que aconteceu (sucesso ou falha)?\n2. Se falhou, qual o motivo e como resolver?\n3. Alguma observação relevante?\n\nResponda de forma direta em até 3 parágrafos curtos.\n\nLog:\n${trimmed}`,
-      }],
+      max_tokens: isOS ? 1024 : 512,
+      messages:   [{ role: 'user', content: prompt }],
     });
     res.json({ analysis: completion.choices[0].message.content });
   } catch (e) {

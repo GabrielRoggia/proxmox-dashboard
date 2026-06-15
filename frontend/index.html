@@ -653,14 +653,48 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0
           <div class="card-h">
             <span class="card-t">Logs de VM</span>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <select class="bkp-vm-sel" id="logs-vm-sel" onchange="loadVMTasks()">
+              <select class="bkp-vm-sel" id="logs-vm-sel" onchange="onLogsVmChange()">
                 <option value="">Selecionar VM...</option>
               </select>
-              <button class="btn" onclick="loadVMTasks()" title="Atualizar">↺ Atualizar</button>
+              <div class="tab-bar">
+                <button class="tab-btn on" id="tab-log-tasks" onclick="switchLogsTab('tasks')">Tarefas Proxmox</button>
+                <button class="tab-btn" id="tab-log-os" onclick="switchLogsTab('os')">Logs do SO</button>
+              </div>
             </div>
           </div>
-          <div id="tasks-list" style="padding:1rem">
-            <div style="text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px">Selecione uma VM para ver o histórico de tarefas</div>
+          <!-- Tarefas Proxmox pane -->
+          <div class="tab-pane on" id="log-pane-tasks">
+            <div style="display:flex;justify-content:flex-end;padding:.5rem 1rem 0">
+              <button class="btn" onclick="loadVMTasks()">↺ Atualizar</button>
+            </div>
+            <div id="tasks-list" style="padding:.5rem 1rem 1rem">
+              <div style="text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px">Selecione uma VM para ver o histórico de tarefas</div>
+            </div>
+          </div>
+          <!-- Logs do SO pane -->
+          <div class="tab-pane" id="log-pane-os">
+            <div style="padding:1rem">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;gap:.75rem;flex-wrap:wrap">
+                <div style="font-size:11px;color:var(--txt2);font-family:var(--fm);line-height:1.6">
+                  Captura logs críticos e warnings diretamente do SO via <strong style="color:var(--txt)">QEMU Guest Agent</strong>.<br>
+                  <span style="color:var(--txt3)">Requer: VM em execução + guest agent instalado (qemu-guest-agent).</span>
+                </div>
+                <button class="btn btn-pri" id="capture-os-logs-btn" onclick="captureOSLogs()" style="font-size:11px;white-space:nowrap;flex-shrink:0">
+                  ↓ Capturar Logs do SO
+                </button>
+              </div>
+              <div id="os-logs-output" style="display:none">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.625rem;gap:.5rem;flex-wrap:wrap">
+                  <span id="os-logs-summary" style="font-size:11px;font-family:var(--fm);color:var(--txt2)"></span>
+                  <button class="ai-analyze-btn" id="ai-analyze-os-btn" onclick="analyzeOSLogs()">✦ Analisar com IA</button>
+                </div>
+                <div id="ai-os-analysis" class="ai-analysis-box" style="display:none;margin-bottom:.75rem">
+                  <div class="ai-a-hdr">✦ Análise IA</div>
+                  <div id="ai-os-analysis-text"></div>
+                </div>
+                <div class="log-output" id="os-logs-body" style="max-height:520px"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2068,7 +2102,7 @@ function initLogsPage(){
     sel.appendChild(o);
   });
   if(prev) sel.value=prev;
-  if(sel.value) loadVMTasks();
+  if(sel.value&&logsTab==='tasks') loadVMTasks();
 }
 
 const taskTypeLabels={
@@ -2196,6 +2230,100 @@ function renderMarkdown(md){
   }
   if(inTable)html+='</table>';
   return html;
+}
+
+// ── OS Logs via Guest Agent ───────────────────────────────────────────────────
+let currentOSLogs=[], logsTab='tasks';
+
+function onLogsVmChange(){
+  if(logsTab==='tasks') loadVMTasks();
+  else {
+    g('os-logs-output').style.display='none';
+    g('ai-os-analysis').style.display='none';
+    currentOSLogs=[];
+  }
+}
+
+function switchLogsTab(tab){
+  logsTab=tab;
+  ['tasks','os'].forEach(t=>{
+    g('tab-log-'+t).classList.toggle('on',t===tab);
+    g('log-pane-'+t).classList.toggle('on',t===tab);
+  });
+  if(tab==='tasks') loadVMTasks();
+}
+
+async function captureOSLogs(){
+  const vmid=g('logs-vm-sel').value;
+  if(!vmid){toast('Selecione uma VM primeiro','err');return;}
+  const btn=g('capture-os-logs-btn');
+  const output=g('os-logs-output');
+  const body=g('os-logs-body');
+  const summary=g('os-logs-summary');
+  const analysisBox=g('ai-os-analysis');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin" style="display:inline-block;margin-right:5px">↺</span> Capturando...';
+  output.style.display='none';
+  analysisBox.style.display='none';
+  currentOSLogs=[];
+  try{
+    const r=await fetch(API+'/api/vms/'+vmid+'/os-logs');
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||'Erro '+r.status);
+    currentOSLogs=d.lines||[];
+    const total=currentOSLogs.length;
+    if(!total){
+      body.innerHTML='<div style="color:var(--green);text-align:center;padding:2rem;font-family:var(--fm);font-size:12px">Nenhum log crítico encontrado. O sistema parece saudável!</div>';
+    } else {
+      body.innerHTML=currentOSLogs.map(l=>{
+        const txt=l.t||'';
+        const lo=txt.toLowerCase();
+        let color='var(--txt)';
+        if(/emerg|alert|\[crit\]|\bcrit\b/.test(lo)) color='var(--red)';
+        else if(/\berr(or)?\b|\[err\]|\[error\]|failed|failure/.test(lo)) color='#f87171';
+        else if(/warn(ing)?|\[warn\]|\[warning\]/.test(lo)) color='var(--amber)';
+        return`<div class="log-line" style="color:${color}">${escHtml(txt)}</div>`;
+      }).join('');
+    }
+    const vmName=vms.find(v=>String(v.vmid)===String(vmid))?.name||'VM '+vmid;
+    const osLabel=d.isWindows?'Windows':(d.ostype||'Linux');
+    summary.textContent=`${vmName} · ${osLabel} · ${total} entradas`;
+    output.style.display='block';
+    body.scrollTop=0;
+    toast('Logs capturados: '+total+' entradas','ok');
+  }catch(e){
+    toast(e.message,'err');
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='↓ Capturar Logs do SO';
+  }
+}
+
+async function analyzeOSLogs(){
+  if(!currentOSLogs.length){toast('Capture os logs primeiro','err');return;}
+  const btn=g('ai-analyze-os-btn');
+  const analysisBox=g('ai-os-analysis');
+  const analysisText=g('ai-os-analysis-text');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin" style="display:inline-block">↺</span> Analisando...';
+  analysisBox.style.display='none';
+  try{
+    const r=await fetch(API+'/api/ai/analyze-log',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({log:currentOSLogs,logSource:'os'}),
+    });
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    analysisText.innerHTML=escHtml(d.analysis).replace(/\n/g,'<br>');
+    analysisBox.style.display='block';
+    analysisBox.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }catch(e){
+    toast('Erro na análise: '+e.message,'err');
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='✦ Analisar com IA';
+  }
 }
 
 // ── AI Assistant ──────────────────────────────────────────────────────────────
