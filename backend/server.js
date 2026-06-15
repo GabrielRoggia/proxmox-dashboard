@@ -1,8 +1,9 @@
-const express = require('express');
-const https   = require('https');
-const axios   = require('axios');
-const cors    = require('cors');
-const path    = require('path');
+const express   = require('express');
+const https     = require('https');
+const axios     = require('axios');
+const cors      = require('cors');
+const path      = require('path');
+const Groq = require('groq-sdk');
 require('dotenv').config();
 
 const app  = express();
@@ -55,8 +56,27 @@ app.get('/api/node/status', async (req, res) => {
 });
 
 app.get('/api/vms', async (req, res) => {
-  try { res.json((await get(`/nodes/${NODE}/qemu`)).sort((a, b) => a.vmid - b.vmid)); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const vms = (await get(`/nodes/${NODE}/qemu`)).sort((a, b) => a.vmid - b.vmid);
+    const running = vms.filter(v => v.status === 'running');
+    if (running.length) {
+      const statuses = await Promise.all(
+        running.map(v => get(`/nodes/${NODE}/qemu/${v.vmid}/status/current`).catch(() => null))
+      );
+      statuses.forEach((s, i) => {
+        if (!s) return;
+        const vm = vms.find(v => v.vmid === running[i].vmid);
+        if (vm) {
+          // status/current reports actual guest memory usage via balloon driver
+          vm.mem    = s.mem;
+          vm.maxmem = s.maxmem;
+          vm.cpu    = s.cpu;
+          vm.cpus   = s.cpus;
+        }
+      });
+    }
+    res.json(vms);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/vms/:id/config', async (req, res) => {
@@ -340,6 +360,545 @@ app.post('/api/vms/create', async (req, res) => {
   } catch (e) {
     sse(0, `Erro: ${e.message}`, { error: true });
     res.end();
+  }
+});
+
+// ── AI ASSISTANT (Groq) ──────────────────────────────────────────────────────
+const groq = process.env.GROQ_API_KEY
+  ? new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 90000 })
+  : null;
+
+const AI_TOOLS_GROQ = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_node_status',
+      description: 'Obtém status do nó Proxmox: uso de CPU, memória, disco raiz e uptime.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_vms',
+      description: 'Lista todas as VMs com ID, nome, status, CPU, memória e uptime.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_vm_config',
+      description: 'Retorna configuração detalhada e status atual de uma VM específica.',
+      parameters: {
+        type: 'object',
+        properties: { vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' } },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'start_vm',
+      description: 'Inicia uma VM que está parada.',
+      parameters: {
+        type: 'object',
+        properties: { vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' } },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'stop_vm',
+      description: 'Para forçadamente uma VM em execução (equivale a cortar energia).',
+      parameters: {
+        type: 'object',
+        properties: { vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' } },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'shutdown_vm',
+      description: 'Desliga graciosamente uma VM via sinal ACPI de shutdown.',
+      parameters: {
+        type: 'object',
+        properties: { vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' } },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'reboot_vm',
+      description: 'Reinicia uma VM em execução.',
+      parameters: {
+        type: 'object',
+        properties: { vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' } },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_storage',
+      description: 'Lista todos os storages com capacidade total e uso atual.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_vm_backups',
+      description: 'Lista backups disponíveis de uma VM específica.',
+      parameters: {
+        type: 'object',
+        properties: { vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' } },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_vm_tasks',
+      description: 'Lista o histórico de tarefas e operações realizadas em uma VM: inicializações, paradas, backups, migrações, criações, etc. Use para gerar logs de operações de uma VM.',
+      parameters: {
+        type: 'object',
+        properties: { vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' } },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_vm_config',
+      description: 'Atualiza configurações de uma VM: número de vCPUs, memória RAM, nome ou descrição. A VM não precisa estar parada para alterações de nome/descrição, mas CPU e RAM exigem reboot para ter efeito.',
+      parameters: {
+        type: 'object',
+        properties: {
+          vmid:        { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' },
+          cores:       { type: 'number', description: 'Número de vCPUs' },
+          memory:      { type: 'number', description: 'Memória RAM em MB (ex: 4096 = 4 GB)' },
+          name:        { type: 'string', description: 'Novo nome da VM' },
+          description: { type: 'string', description: 'Descrição/anotação da VM' },
+        },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'resize_vm_disk',
+      description: 'Aumenta o tamanho do disco de uma VM. Use +10G para adicionar 10 GB ao tamanho atual, ou 50G para definir o tamanho total. Só é possível aumentar, nunca diminuir.',
+      parameters: {
+        type: 'object',
+        properties: {
+          vmid: { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' },
+          size: { type: 'string', description: 'Incremento ex: +10G, ou tamanho total ex: 50G' },
+          disk: { type: 'string', description: 'Disco alvo (padrão: scsi0)' },
+        },
+        required: ['vmid', 'size'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_vm',
+      description: 'Exclui permanentemente uma VM e todos os seus discos. Ação irreversível — só execute quando o usuário confirmar explicitamente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          vmid:  { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' },
+          force: { type: 'boolean', description: 'Forçar exclusão mesmo se a VM estiver rodando (padrão: false)' },
+        },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'backup_vm',
+      description: 'Inicia um backup de uma VM e aguarda a conclusão. Retorna resultado do backup.',
+      parameters: {
+        type: 'object',
+        properties: {
+          vmid:     { type: 'string', description: 'ID numérico ou nome da VM (ex: 101 ou "ubuntu-server")' },
+          storage:  { type: 'string', description: 'Storage de destino (padrão: local)' },
+          mode:     { type: 'string', description: 'Modo: snapshot, suspend ou stop (padrão: snapshot)' },
+          compress: { type: 'string', description: 'Compressão: zstd, lzo, gzip (padrão: zstd)' },
+        },
+        required: ['vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'restore_vm_backup',
+      description: 'Restaura uma VM a partir de um backup. Use get_vm_backups para obter o volid do backup.',
+      parameters: {
+        type: 'object',
+        properties: {
+          volid:   { type: 'string', description: 'Volume ID do backup (ex: local:backup/vzdump-qemu-101-...)' },
+          vmid:    { type: 'number', description: 'ID que a VM restaurada receberá' },
+          storage: { type: 'string', description: 'Storage de destino para os discos (padrão: local-lvm)' },
+          start:   { type: 'boolean', description: 'Iniciar VM automaticamente após restaurar' },
+        },
+        required: ['volid', 'vmid'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_backup',
+      description: 'Exclui permanentemente um arquivo de backup do storage. Ação irreversível.',
+      parameters: {
+        type: 'object',
+        properties: {
+          volid:   { type: 'string', description: 'Volume ID do backup' },
+          storage: { type: 'string', description: 'Nome do storage onde o backup está' },
+        },
+        required: ['volid', 'storage'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_linux_vm',
+      description: 'Cria uma nova VM Linux Ubuntu clonando o template padrão, configurando CPU, RAM, disco e cloud-init, e inicia a VM automaticamente. Use quando o usuário pedir para criar uma VM Linux.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name:       { type: 'string', description: 'Nome da VM (obrigatório)' },
+          cores:      { type: 'number', description: 'Número de vCPUs (padrão: 2)' },
+          memory_mb:  { type: 'number', description: 'Memória RAM em MB (padrão: 2048)' },
+          disk_gb:    { type: 'number', description: 'Tamanho do disco em GB (padrão: 20)' },
+          ciuser:     { type: 'string', description: 'Usuário cloud-init (padrão: ubuntu)' },
+          cipassword: { type: 'string', description: 'Senha do usuário cloud-init' },
+          ip:         { type: 'string', description: 'IP estático no formato 192.168.1.100/24 — omitir para DHCP' },
+          gateway:    { type: 'string', description: 'Gateway padrão, necessário se ip for fornecido' },
+        },
+        required: ['name'],
+      },
+    },
+  },
+];
+
+const AI_TOOL_LABELS = {
+  get_node_status: 'Verificando status do nó...',
+  get_vms:         'Listando VMs...',
+  get_vm_config:   'Carregando config da VM...',
+  start_vm:        'Iniciando VM...',
+  stop_vm:         'Parando VM...',
+  shutdown_vm:     'Desligando VM...',
+  reboot_vm:       'Reiniciando VM...',
+  get_storage:     'Consultando storage...',
+  get_vm_backups:  'Listando backups...',
+  get_vm_tasks:       'Buscando histórico de operações...',
+  update_vm_config:   'Atualizando configuração da VM...',
+  resize_vm_disk:     'Redimensionando disco...',
+  delete_vm:          'Excluindo VM...',
+  backup_vm:          'Executando backup...',
+  restore_vm_backup:  'Restaurando backup...',
+  delete_backup:      'Excluindo backup...',
+  create_linux_vm:    'Criando VM Linux...',
+};
+
+async function resolveVmid(input) {
+  const val = input.vmid;
+  if (val === undefined || val === null) throw new Error('vmid é obrigatório');
+  const num = parseInt(val);
+  if (!isNaN(num) && String(num) === String(val).trim()) return num;
+  const vms = await get(`/nodes/${NODE}/qemu`);
+  const vm = vms.find(v => v.name && v.name.toLowerCase() === String(val).toLowerCase());
+  if (!vm) throw new Error(`VM "${val}" não encontrada. Use get_vms para listar as VMs disponíveis.`);
+  return vm.vmid;
+}
+
+async function executeAITool(name, input) {
+  try {
+    switch (name) {
+      case 'get_node_status': {
+        const [status, storage] = await Promise.all([
+          get(`/nodes/${NODE}/status`),
+          get(`/nodes/${NODE}/storage`),
+        ]);
+        return { status, storage };
+      }
+      case 'get_vms':
+        return (await get(`/nodes/${NODE}/qemu`)).sort((a, b) => a.vmid - b.vmid);
+      case 'get_vm_config': {
+        const vmid = await resolveVmid(input);
+        const [current, config] = await Promise.all([
+          get(`/nodes/${NODE}/qemu/${vmid}/status/current`),
+          get(`/nodes/${NODE}/qemu/${vmid}/config`),
+        ]);
+        return { current, config };
+      }
+      case 'start_vm': {
+        const vmid = await resolveVmid(input);
+        return { upid: await post(`/nodes/${NODE}/qemu/${vmid}/status/start`) };
+      }
+      case 'stop_vm': {
+        const vmid = await resolveVmid(input);
+        return { upid: await post(`/nodes/${NODE}/qemu/${vmid}/status/stop`) };
+      }
+      case 'shutdown_vm': {
+        const vmid = await resolveVmid(input);
+        return { upid: await post(`/nodes/${NODE}/qemu/${vmid}/status/shutdown`) };
+      }
+      case 'reboot_vm': {
+        const vmid = await resolveVmid(input);
+        return { upid: await post(`/nodes/${NODE}/qemu/${vmid}/status/reboot`) };
+      }
+      case 'get_storage':
+        return await get(`/nodes/${NODE}/storage`);
+      case 'get_vm_backups': {
+        const vmid = await resolveVmid(input);
+        const storages = await get(`/nodes/${NODE}/storage`);
+        const bkpStors = storages.filter(s => s.active && s.content && s.content.includes('backup'));
+        const results = [];
+        for (const stor of bkpStors) {
+          try {
+            const content = await get(`/nodes/${NODE}/storage/${stor.storage}/content?content=backup&vmid=${vmid}`);
+            results.push(...content.map(b => ({ ...b, storage: stor.storage })));
+          } catch (_) {}
+        }
+        return results.sort((a, b) => (b.ctime || 0) - (a.ctime || 0));
+      }
+      case 'get_vm_tasks': {
+        const vmid = await resolveVmid(input);
+        return await get(`/nodes/${NODE}/tasks?vmid=${vmid}&limit=50`);
+      }
+      case 'update_vm_config': {
+        const vmid = await resolveVmid(input);
+        const body = {};
+        if (input.cores       !== undefined) body.cores       = parseInt(input.cores);
+        if (input.memory      !== undefined) body.memory      = parseInt(input.memory);
+        if (input.name        !== undefined) body.name        = input.name;
+        if (input.description !== undefined) body.description = input.description;
+        await put(`/nodes/${NODE}/qemu/${vmid}/config`, body);
+        return { success: true, vmid, updated: body };
+      }
+      case 'resize_vm_disk': {
+        const vmid = await resolveVmid(input);
+        const disk = input.disk || 'scsi0';
+        await put(`/nodes/${NODE}/qemu/${vmid}/resize`, { disk, size: input.size });
+        return { success: true, vmid, disk, size: input.size };
+      }
+      case 'delete_vm': {
+        const vmid = await resolveVmid(input);
+        const current = await get(`/nodes/${NODE}/qemu/${vmid}/status/current`);
+        if (current.status === 'running') {
+          if (!input.force) return { error: 'VM está rodando. Peça confirmação ao usuário e use force: true para forçar, ou desligue a VM primeiro.' };
+          const stopUpid = await post(`/nodes/${NODE}/qemu/${vmid}/status/stop`);
+          await waitTask(stopUpid);
+        }
+        const delUpid = await del(`/nodes/${NODE}/qemu/${vmid}?purge=1&destroy-unreferenced-disks=1`);
+        await waitTask(delUpid);
+        return { success: true, vmid };
+      }
+      case 'backup_vm': {
+        const vmid = await resolveVmid(input);
+        const upid = await post(`/nodes/${NODE}/vzdump`, {
+          vmid,
+          storage:  input.storage  || 'local',
+          mode:     input.mode     || 'snapshot',
+          compress: input.compress || 'zstd',
+        });
+        await waitTask(upid, 600000);
+        return { success: true, vmid, upid };
+      }
+      case 'restore_vm_backup': {
+        const upid = await post(`/nodes/${NODE}/qemu`, {
+          archive: input.volid,
+          vmid:    parseInt(input.vmid),
+          storage: input.storage || 'local-lvm',
+          start:   input.start ? 1 : 0,
+          unique:  1,
+        });
+        await waitTask(upid, 600000);
+        return { success: true, vmid: input.vmid, upid };
+      }
+      case 'delete_backup': {
+        const enc = encodeURIComponent(input.volid);
+        await del(`/nodes/${NODE}/storage/${input.storage}/content/${enc}`);
+        return { success: true, volid: input.volid };
+      }
+      case 'create_linux_vm': {
+        const UTPL   = parseInt(process.env.UBUNTU_TEMPLATE_ID || '9000');
+        const stor   = 'local-lvm';
+        const vmid   = await get('/cluster/nextid');
+        const name   = input.name;
+        const cores  = parseInt(input.cores)     || 2;
+        const memory = parseInt(input.memory_mb) || 2048;
+        const diskGb = parseInt(input.disk_gb)   || 20;
+
+        const cloneUpid = await post(`/nodes/${NODE}/qemu/${UTPL}/clone`, {
+          newid: parseInt(vmid), name, full: 1, storage: stor,
+        });
+        await waitTask(cloneUpid, 300000);
+
+        try {
+          await put(`/nodes/${NODE}/qemu/${vmid}/resize`, { disk: 'scsi0', size: `${diskGb}G` });
+        } catch (_) {}
+
+        const cfg = {
+          cores, memory, agent: 'enabled=1', ciupgrade: 1, citype: 'nocloud',
+          ipconfig0: (input.ip && input.gateway) ? `ip=${input.ip},gw=${input.gateway}` : 'ip=dhcp',
+        };
+        if (input.ciuser)     cfg.ciuser     = input.ciuser;
+        if (input.cipassword) cfg.cipassword = input.cipassword;
+        await put(`/nodes/${NODE}/qemu/${vmid}/config`, cfg);
+
+        try {
+          const storages    = await get(`/nodes/${NODE}/storage`);
+          const snippetStor = storages.find(s => s.active && s.content && s.content.includes('snippets'));
+          if (snippetStor) {
+            await put(`/nodes/${NODE}/qemu/${vmid}/config`, {
+              cicustom: `vendor=${snippetStor.storage}:snippets/proxmox-dashboard-user.yaml`,
+            });
+          }
+        } catch (_) {}
+
+        const startUpid = await post(`/nodes/${NODE}/qemu/${vmid}/status/start`);
+        await waitTask(startUpid, 120000);
+
+        return {
+          success:   true,
+          vmid:      parseInt(vmid),
+          name,
+          cores,
+          memory_mb: memory,
+          disk_gb:   diskGb,
+          network:   (input.ip && input.gateway) ? `${input.ip} via ${input.gateway}` : 'DHCP',
+        };
+      }
+      default:
+        return { error: 'Ferramenta desconhecida: ' + name };
+    }
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+const AI_SYSTEM = `Você é um assistente de infraestrutura integrado a um dashboard Proxmox VE. Você pode executar todas as operações de gerenciamento de VMs diretamente.
+Responda sempre em português, de forma direta e técnica.
+
+Capacidades disponíveis:
+- Consultar: status do nó, lista de VMs, configuração de VM, storage, backups, histórico de tarefas
+- Controlar VMs: iniciar, parar (force stop), desligar (graceful), reiniciar
+- Reconfigurar VMs: alterar CPU, RAM, nome, descrição (update_vm_config)
+- Disco: aumentar tamanho de disco (resize_vm_disk)
+- Criar VM Linux: clone do template Ubuntu com cloud-init (create_linux_vm) — use defaults 2 vCPU / 2048 MB / 20 GB / DHCP se não especificado. ANTES de chamar create_linux_vm, sempre mostre uma tabela markdown com os dados que serão criados (incluindo as colunas: Nome, CPU, RAM, Disco, Rede, Usuário, Senha) e pergunte "Confirma a criação?" — só execute a tool após confirmação explícita do usuário.
+- Backup: executar backup (backup_vm), restaurar (restore_vm_backup), excluir backup (delete_backup)
+
+Para ações destrutivas irreversíveis (delete_vm, delete_backup, restore_vm_backup): mostre o que será feito e pergunte "Tem certeza?" antes de executar, se não houver confirmação explícita na mensagem.
+Ao listar VMs, mostre nome, ID, status e métricas principais formatadas de forma legível.`;
+
+app.post('/api/ai/chat', async (req, res) => {
+  if (!groq) {
+    return res.status(503).json({ error: 'GROQ_API_KEY não configurada no servidor.' });
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const sse = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  const { messages } = req.body;
+
+  if (!Array.isArray(messages) || !messages.length) {
+    sse({ type: 'error', message: 'messages inválido' });
+    return res.end();
+  }
+
+  const history = [
+    { role: 'system', content: AI_SYSTEM },
+    ...messages.map(m => ({ role: m.role, content: m.content })),
+  ];
+
+  try {
+    let loop = true;
+
+    while (loop) {
+      // Non-streaming for tool calls — Groq streaming + tools causes failed_generation errors
+      const response = await groq.chat.completions.create({
+        model:       'llama-3.3-70b-versatile',
+        messages:    history,
+        tools:       AI_TOOLS_GROQ,
+        tool_choice: 'auto',
+        max_tokens:  4096,
+        stream:      false,
+      });
+
+      const message   = response.choices[0].message;
+      const toolCalls = message.tool_calls || [];
+
+      if (toolCalls.length > 0) {
+        history.push(message);
+
+        for (const tc of toolCalls) {
+          sse({ type: 'tool_start', name: tc.function.name, label: AI_TOOL_LABELS[tc.function.name] || tc.function.name });
+          let args = {};
+          try { args = JSON.parse(tc.function.arguments || '{}'); } catch (_) {}
+          const result = await executeAITool(tc.function.name, args);
+          sse({ type: 'tool_end', name: tc.function.name });
+          history.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+        }
+      } else {
+        const content = message.content || '';
+        if (content) sse({ type: 'text', delta: content });
+        loop = false;
+      }
+    }
+
+    sse({ type: 'done', history: messages });
+    res.end();
+  } catch (e) {
+    sse({ type: 'error', message: e.message });
+    res.end();
+  }
+});
+
+app.post('/api/ai/analyze-log', async (req, res) => {
+  if (!groq) {
+    return res.status(503).json({ error: 'GROQ_API_KEY não configurada no servidor.' });
+  }
+
+  const { log, taskType } = req.body;
+  if (!Array.isArray(log)) return res.status(400).json({ error: 'log é obrigatório' });
+
+  const logText = log.map(l => l.t || l.text || JSON.stringify(l)).join('\n');
+  const trimmed = logText.length > 6000 ? logText.slice(-6000) : logText;
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model:      'llama-3.3-70b-versatile',
+      max_tokens: 512,
+      messages:   [{
+        role:    'user',
+        content: `Você é especialista em Proxmox VE. Analise este log de tarefa${taskType ? ' (' + taskType + ')' : ''} e responda em português:\n1. O que aconteceu (sucesso ou falha)?\n2. Se falhou, qual o motivo e como resolver?\n3. Alguma observação relevante?\n\nResponda de forma direta em até 3 parágrafos curtos.\n\nLog:\n${trimmed}`,
+      }],
+    });
+    res.json({ analysis: completion.choices[0].message.content });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

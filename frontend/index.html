@@ -99,36 +99,45 @@ body{background:var(--bg);color:var(--txt);font-family:var(--ff);font-size:14px;
 .mc-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
 
 /* ── VM Cards ── */
-.vm-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:1.5rem}
-.vm-card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.125rem;transition:all .22s;cursor:default;position:relative;overflow:hidden}
-.vm-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);pointer-events:none}
-.vm-card:hover{background:var(--glass2);border-color:var(--bdr2);box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06);transform:translateY(-1px)}
-.vc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem}
-.vc-info{display:flex;align-items:center;gap:9px}
-.vc-name{font-size:13px;font-weight:600;letter-spacing:-.01em}
-.vc-id{font-size:10px;color:var(--txt3);font-family:var(--fm);margin-top:1px}
-.vc-score{text-align:right}
-.vc-score-val{font-size:19px;font-weight:700;font-family:var(--fm);line-height:1}
-.vc-score-lbl{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px}
-.vc-gauges{display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:.75rem}
-.gauge-wrap{text-align:center}
-.gauge-lbl{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-top:.3rem}
-.vc-mini{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem}
-.mini-row{display:flex;align-items:center;gap:6px}
-.mini-ico{width:12px;height:12px;color:var(--txt3);flex-shrink:0}
-.mini-lbl{font-size:10px;color:var(--txt3);flex-shrink:0;min-width:32px}
-.mini-chart{flex:1;height:22px}
-.vc-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--bdr);padding-top:.625rem;margin-top:.25rem}
-.vc-ram-txt{font-size:10px;color:var(--txt2);font-family:var(--fm)}
+.vm-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:1.5rem}
+.vm-card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);transition:all .22s;cursor:default;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.vm-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;pointer-events:none}
+.vm-card.vc-run::after{background:linear-gradient(90deg,var(--green),var(--cyan));opacity:.75}
+.vm-card.vc-off::after{background:rgba(255,255,255,.08);opacity:1}
+.vm-card:hover{background:var(--glass2);border-color:var(--bdr2);box-shadow:0 8px 32px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.05);transform:translateY(-2px)}
+/* header */
+.vc-hdr{display:flex;align-items:center;gap:10px;padding:1rem 1rem .875rem}
+.vc-hdr-txt{flex:1;min-width:0}
+.vc-name{font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-meta{font-size:10px;color:var(--txt3);font-family:var(--fm);margin-top:3px}
+/* gauges */
+.vc-gauges{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;padding:0 1rem .875rem}
+.vc-gwrap{display:flex;flex-direction:column;align-items:center;gap:.3rem}
+.vc-glbl{font-size:10px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.7px}
+.vc-gsub{font-size:10px;color:var(--txt3);font-family:var(--fm)}
+/* history panel */
+.vc-history{border-top:1px solid var(--bdr);padding:.75rem 1rem}
+.vc-hist-title{font-size:9px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.5rem}
+.vc-hist-row{display:flex;align-items:center;gap:7px;margin-bottom:.4rem}
+.vc-hist-row:last-child{margin-bottom:0}
+.vc-hist-lbl{font-size:9px;font-family:var(--fm);text-transform:uppercase;letter-spacing:.5px;color:var(--txt3);min-width:26px;flex-shrink:0}
+.vc-hist-spark{flex:1;min-width:0}
+.vc-hist-stats{display:flex;gap:3px;flex-shrink:0}
+.vc-hstat{font-size:9px;font-family:var(--fm);padding:2px 5px;border-radius:4px;border:1px solid var(--bdr);background:var(--bg3);white-space:nowrap;color:var(--txt3)}
+.vc-hstat.now{color:var(--txt2);border-color:rgba(255,255,255,.12)}
+.vc-hstat.pk{color:var(--amber)}
+/* offline config chips */
+.vc-offline{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;padding:0 1rem .875rem}
+.vc-ochip{background:rgba(255,255,255,.03);border:1px solid var(--bdr);border-radius:var(--r);padding:.5rem .75rem}
+.vc-ochip-k{font-size:9px;color:var(--txt3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.vc-ochip-v{font-size:12px;font-family:var(--fm);font-weight:600;color:var(--txt2)}
+/* footer */
+.vc-foot{display:flex;align-items:center;justify-content:space-between;padding:.625rem 1rem;border-top:1px solid var(--bdr);margin-top:auto}
 .vc-uptime{font-size:10px;color:var(--txt3);font-family:var(--fm)}
-.vc-acts{display:flex;gap:4px}
-.vc-expand{font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:3px;background:none;border:none;font-family:var(--ff);font-weight:600;transition:.15s}
-.vc-expand:hover{color:var(--blue)}
-.vc-detail{display:none;border-top:1px solid var(--bdr);margin-top:.625rem;padding-top:.625rem}
-.vc-detail.open{display:block}
+.vc-acts{display:flex;gap:3px}
 
 /* ── Circular Gauge SVG ── */
-.gauge-svg{width:80px;height:80px;display:block;margin:0 auto;filter:drop-shadow(0 0 6px rgba(59,130,246,.2))}
+.gauge-svg{width:76px;height:76px;display:block;filter:drop-shadow(0 0 5px rgba(59,130,246,.15))}
 
 /* ── Cluster Health Panel ── */
 .health-panel{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.25rem;margin-bottom:1.25rem}
@@ -401,6 +410,48 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0
 /* ── Responsive & utility ── */
 @media(max-width:480px){.topbar{padding:.6rem 1rem}.content{padding:1rem}}
 @media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+
+/* ── AI Assistant ── */
+.ai-chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 120px);min-height:400px}
+.ai-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:.875rem;padding:.25rem 0 .75rem}
+.ai-welcome{text-align:center;padding:2.5rem 1rem;margin:auto}
+.ai-welcome-icon{width:56px;height:56px;background:linear-gradient(135deg,#7c3aed,var(--blue));border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:22px;box-shadow:0 0 28px rgba(124,58,237,.4);color:#fff}
+.ai-welcome-t{font-size:20px;font-weight:700;margin-bottom:.5rem;letter-spacing:-.02em}
+.ai-welcome-sub{font-size:12px;color:var(--txt2);font-family:var(--fm);max-width:420px;margin:0 auto 1.5rem;line-height:1.6}
+.ai-suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.ai-sug{border:1px solid var(--bdr2);background:var(--glass);border-radius:20px;padding:6px 14px;font-size:11px;color:var(--txt2);cursor:pointer;font-family:var(--ff);transition:all .18s;user-select:none}
+.ai-sug:hover{border-color:rgba(124,58,237,.5);color:#a78bfa;background:rgba(124,58,237,.1)}
+.ai-msg{display:flex;flex-direction:column;max-width:78%}
+.ai-msg.user{align-self:flex-end;align-items:flex-end}
+.ai-msg.assistant{align-self:flex-start;align-items:flex-start}
+.ai-bubble{padding:.75rem 1rem;border-radius:var(--rl);font-size:13px;line-height:1.7;word-break:break-word;white-space:pre-wrap}
+.ai-msg.user .ai-bubble{background:linear-gradient(135deg,#4f46e5,var(--blue));color:#fff;border-bottom-right-radius:4px;box-shadow:0 4px 16px rgba(59,130,246,.25)}
+.ai-msg.assistant .ai-bubble{background:var(--glass);border:1px solid var(--bdr);color:var(--txt);border-bottom-left-radius:4px;backdrop-filter:var(--blur);white-space:normal}
+.ai-table{width:100%;border-collapse:collapse;margin:.4rem 0;font-size:12px}
+.ai-table th,.ai-table td{padding:5px 10px;border:1px solid var(--bdr);text-align:left}
+.ai-table th{background:rgba(255,255,255,.07);font-weight:600;color:var(--txt)}
+.ai-table td{color:var(--txt2)}
+.ai-table tr:hover td{background:rgba(255,255,255,.04)}
+.ai-tool-row{display:flex;flex-direction:column;gap:4px;align-self:flex-start;margin:2px 0}
+.ai-tool-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:10px;font-family:var(--fm);background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);color:#a78bfa;transition:all .3s}
+.ai-tool-chip.done{background:var(--greenb);border-color:rgba(16,185,129,.25);color:var(--green)}
+.ai-typing{display:flex;gap:5px;padding:.4rem .5rem;align-items:center}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:var(--txt3);animation:ai-bounce .9s ease-in-out infinite}
+.ai-dot:nth-child(2){animation-delay:.15s}.ai-dot:nth-child(3){animation-delay:.3s}
+@keyframes ai-bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}
+.ai-msg-time{font-size:10px;color:var(--txt3);font-family:var(--fm);margin-top:3px;padding:0 4px}
+.ai-input-bar{display:flex;gap:8px;padding:.875rem 0 0;border-top:1px solid var(--bdr);margin-top:.5rem}
+.ai-input{flex:1;padding:10px 14px;background:rgba(255,255,255,.06);border:1px solid var(--bdr2);border-radius:var(--rl);color:var(--txt);font-size:13px;font-family:var(--ff);outline:none;transition:all .18s;backdrop-filter:blur(6px)}
+.ai-input:focus{border-color:rgba(124,58,237,.6);box-shadow:0 0 0 3px rgba(124,58,237,.15);background:rgba(255,255,255,.08)}
+.ai-input::placeholder{color:var(--txt3)}
+.ai-send{background:linear-gradient(135deg,#7c3aed,var(--blue));border:none;border-radius:var(--r);color:#fff;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--ff);transition:all .18s;white-space:nowrap;flex-shrink:0}
+.ai-send:hover{opacity:.88;box-shadow:0 0 16px rgba(124,58,237,.4)}
+.ai-send:disabled{opacity:.35;cursor:not-allowed}
+.ai-analyze-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid rgba(124,58,237,.4);background:rgba(124,58,237,.1);color:#a78bfa;border-radius:var(--r);cursor:pointer;font-size:11px;font-family:var(--ff);font-weight:600;transition:all .18s}
+.ai-analyze-btn:hover{background:rgba(124,58,237,.2);border-color:rgba(124,58,237,.6)}
+.ai-analyze-btn:disabled{opacity:.4;cursor:not-allowed}
+.ai-analysis-box{background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.22);border-radius:var(--r);padding:.875rem 1rem;margin-top:.875rem;font-size:12px;color:var(--txt2);line-height:1.7;font-family:var(--fm)}
+.ai-a-hdr{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#a78bfa;margin-bottom:.5rem;display:flex;align-items:center;gap:5px}
 </style>
 </head>
 <body>
@@ -464,6 +515,13 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0
       <div class="nav" onclick="nav('logs')">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Logs
+      </div>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">IA</div>
+      <div class="nav" onclick="nav('ai')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a4 4 0 014 4v1a4 4 0 01-8 0V6a4 4 0 014-4z"/><path d="M9 10v1a3 3 0 006 0v-1"/><path d="M6.5 17.5A7 7 0 0112 16a7 7 0 015.5 1.5"/><circle cx="12" cy="21" r="1"/><path d="M8 21H4a2 2 0 01-2-2v-1a6 6 0 016-6h8a6 6 0 016 6v1a2 2 0 01-2 2h-4"/></svg>
+        Assistente IA
       </div>
     </div>
     <div class="s-sec">
@@ -603,6 +661,24 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0
           </div>
           <div id="tasks-list" style="padding:1rem">
             <div style="text-align:center;padding:3rem;color:var(--txt3);font-family:var(--fm);font-size:12px">Selecione uma VM para ver o histórico de tarefas</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI ASSISTANT -->
+      <div class="section" id="sec-ai">
+        <div class="ai-chat-wrap">
+          <div class="ai-messages" id="ai-messages">
+            <div class="ai-welcome">
+              <div class="ai-welcome-icon">✦</div>
+              <div class="ai-welcome-t">Assistente IA</div>
+              <div class="ai-welcome-sub">Pergunte sobre suas VMs, consulte recursos ou execute ações usando linguagem natural.</div>
+              <div class="ai-suggestions" id="ai-suggestions"></div>
+            </div>
+          </div>
+          <div class="ai-input-bar">
+            <input class="ai-input" id="ai-input" type="text" placeholder="Pergunte sobre suas VMs..." autocomplete="off" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage();}">
+            <button class="ai-send" id="ai-send-btn" onclick="sendAIMessage()">Enviar</button>
           </div>
         </div>
       </div>
@@ -911,6 +987,7 @@ input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15);box-shadow:0
     </div>
     <div class="em-f" style="margin-top:1rem">
       <button class="btn" onclick="closeM('task-log-modal')">Fechar</button>
+      <button class="ai-analyze-btn" id="ai-analyze-log-btn" onclick="analyzeCurrentLog()">✦ Analisar com IA</button>
     </div>
   </div>
 </div>
@@ -963,19 +1040,20 @@ function reconfig(){
 }
 
 // ── Navigation ──────────────────────────────────────────────────────────────
-const titles={dash:'Dashboard',vms:'Máquinas Virtuais',create:'Criar VM',storage:'Storage',backups:'Backups',logs:'Logs de VM'};
+const titles={dash:'Dashboard',vms:'Máquinas Virtuais',create:'Criar VM',storage:'Storage',backups:'Backups',logs:'Logs de VM',ai:'Assistente IA'};
 function nav(p){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
   g('sec-'+p).classList.add('on');
   const navEls=document.querySelectorAll('.nav');
-  const idx=['dash','vms','create','storage','backups','logs','reconfig'].indexOf(p);
+  const idx=['dash','vms','create','storage','backups','logs','ai','reconfig'].indexOf(p);
   if(idx>=0&&navEls[idx]) navEls[idx].classList.add('on');
   g('ptitle').textContent=titles[p]||p;
   if(p==='storage') loadSto();
   if(p==='vms') renderTable('tb-vms',true);
   if(p==='backups') initBackupsPage();
   if(p==='logs') initLogsPage();
+  if(p==='ai') initAIChat();
 }
 
 // ── Data refresh ────────────────────────────────────────────────────────────
@@ -1064,16 +1142,18 @@ function scoreGrade(s){
 
 // ── Gauge SVG ───────────────────────────────────────────────────────────────
 function makeGaugeSVG(pct, color){
+  const p=Math.min(100,Math.max(0,Math.round(pct)));
   const r=32, cx=40, cy=40;
   const circ=2*Math.PI*r;
-  const dash=circ*pct/100;
+  const dash=circ*p/100;
+  const arc=p>0?`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
+      stroke-dasharray="${dash.toFixed(1)} 999" stroke-linecap="round"
+      transform="rotate(-90 ${cx} ${cy})"/>`:'';
   return `<svg class="gauge-svg" viewBox="0 0 80 80">
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--bg3)" stroke-width="6"/>
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
-      stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round"
-      transform="rotate(-90 ${cx} ${cy})"/>
+    ${arc}
     <text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="12" font-weight="700"
-      fill="var(--txt)" font-family="'IBM Plex Mono'">${pct}%</text>
+      fill="${p===0?'var(--txt3)':'var(--txt)'}" font-family="'IBM Plex Mono'">${p}%</text>
   </svg>`;
 }
 
@@ -1122,55 +1202,75 @@ function renderVMCards(){
     const [ico,lbl]=vmIco(vm.name);
     const stCls=vm.status==='running'?'sr':vm.status==='paused'?'sp':'ss';
     const up=vm.uptime?fmtUp(vm.uptime):'—';
-    const cpuGauge=makeGaugeSVG(cpu, cpu>80?'var(--red)':cpu>60?'var(--amber)':'var(--blue)');
-    const memGauge=makeGaugeSVG(mp, mp>80?'var(--red)':mp>60?'var(--amber)':'var(--green)');
     const hist=vmHistory[vm.vmid]||{cpu:[],mem:[]};
     const cpuSpark=makeSparkline(hist.cpu,'var(--blue)');
     const memSpark=makeSparkline(hist.mem,'var(--green)');
     const mg=(vm.mem/1073741824).toFixed(1),maxg=(vm.maxmem/1073741824).toFixed(1);
-    return`<div class="vm-card">
-      <div class="vc-head">
-        <div class="vc-info">
-          <div class="vico ${ico}">${lbl}</div>
-          <div>
-            <div class="vc-name">${vm.name}</div>
-            <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
-              <span class="st ${stCls}" style="font-size:9px;padding:2px 6px"><span class="st-dot"></span>${vm.status}</span>
-            </div>
+    const cpuAvg=hist.cpu.length?Math.round(hist.cpu.reduce((a,b)=>a+b,0)/hist.cpu.length):cpu;
+    const cpuPeak=hist.cpu.length?Math.max(...hist.cpu):cpu;
+    const memAvg=hist.mem.length?Math.round(hist.mem.reduce((a,b)=>a+b,0)/hist.mem.length):mp;
+    const memPeak=hist.mem.length?Math.max(...hist.mem):mp;
+    const cpuGauge=makeGaugeSVG(cpu,cpu>80?'var(--red)':cpu>60?'var(--amber)':'var(--blue)');
+    const memGauge=makeGaugeSVG(mp,mp>80?'var(--red)':mp>60?'var(--amber)':'var(--green)');
+    return`<div class="vm-card ${run?'vc-run':'vc-off'}">
+      <div class="vc-hdr">
+        <div class="vico ${ico}">${lbl}</div>
+        <div class="vc-hdr-txt">
+          <div class="vc-name">${escHtml(vm.name)}</div>
+          <div class="vc-meta">ID ${vm.vmid} · ${vm.cpus||'?'} vCPU · ${maxg} GB RAM</div>
+        </div>
+        <span class="st ${stCls}" style="font-size:9px;padding:2px 7px;flex-shrink:0"><span class="st-dot"></span>${vm.status}</span>
+      </div>
+      ${run?`
+      <div class="vc-gauges">
+        <div class="vc-gwrap">
+          ${cpuGauge}
+          <div class="vc-glbl">CPU</div>
+          <div class="vc-gsub">${vm.cpus||'?'} vCPU</div>
+        </div>
+        <div class="vc-gwrap">
+          ${memGauge}
+          <div class="vc-glbl">RAM</div>
+          <div class="vc-gsub">${mg} / ${maxg} GB</div>
+        </div>
+      </div>
+      <div class="vc-history">
+        <div class="vc-hist-title">Histórico de uso</div>
+        <div class="vc-hist-row">
+          <span class="vc-hist-lbl">CPU</span>
+          <div class="vc-hist-spark">${cpuSpark}</div>
+          <div class="vc-hist-stats">
+            <span class="vc-hstat now">${cpu}%</span>
+            <span class="vc-hstat" title="Média">⌀${cpuAvg}%</span>
+            <span class="vc-hstat pk" title="Pico">↑${cpuPeak}%</span>
           </div>
         </div>
-        ${run?`<div class="vc-score"><div class="vc-score-val" style="color:${scColor}">${score}</div><div class="vc-score-lbl">Score</div></div>`:''}
-      </div>
-      <div class="vc-gauges">
-        <div class="gauge-wrap">${cpuGauge}<div class="gauge-lbl">CPU</div></div>
-        <div class="gauge-wrap">${memGauge}<div class="gauge-lbl">RAM</div></div>
-      </div>
-      ${run?`<div class="vc-mini">
-        <div class="mini-row">
-          <svg class="mini-ico" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
-          <span class="mini-lbl" style="color:var(--blue)">CPU</span>
-          ${cpuSpark}
+        <div class="vc-hist-row">
+          <span class="vc-hist-lbl">RAM</span>
+          <div class="vc-hist-spark">${memSpark}</div>
+          <div class="vc-hist-stats">
+            <span class="vc-hstat now">${mp}%</span>
+            <span class="vc-hstat" title="Média">⌀${memAvg}%</span>
+            <span class="vc-hstat pk" title="Pico">↑${memPeak}%</span>
+          </div>
         </div>
-        <div class="mini-row">
-          <svg class="mini-ico" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
-          <span class="mini-lbl" style="color:var(--green)">RAM</span>
-          ${memSpark}
-        </div>
-      </div>`:''}
+      </div>`:`
+      <div class="vc-offline">
+        <div class="vc-ochip"><div class="vc-ochip-k">CPU</div><div class="vc-ochip-v">${vm.cpus||'?'} vCPU</div></div>
+        <div class="vc-ochip"><div class="vc-ochip-k">RAM</div><div class="vc-ochip-v">${maxg} GB</div></div>
+        <div class="vc-ochip"><div class="vc-ochip-k">ID</div><div class="vc-ochip-v">${vm.vmid}</div></div>
+      </div>`}
       <div class="vc-foot">
-        <div>
-          <div class="vc-ram-txt">${run?`${mg} / ${maxg} GB`:`${maxg} GB alocado`}</div>
-          <div class="vc-uptime">${run?`↑ ${up} · ID ${vm.vmid}`:`ID ${vm.vmid}`}</div>
-        </div>
+        <span class="vc-uptime">${run?`↑ ${up} · score <strong style="color:${scColor}">${score}</strong>`:`Desligada`}</span>
         <div class="vc-acts">
           ${run
-            ?`<button class="btn btn-stop" onclick="vmAct(${vm.vmid},'shutdown')" title="Parar"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
-              <button class="btn" onclick="vmAct(${vm.vmid},'reboot')" title="Reiniciar">↺</button>`
+            ?`<button class="btn btn-stop" onclick="vmAct(${vm.vmid},'shutdown')" title="Desligar"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+               <button class="btn" onclick="vmAct(${vm.vmid},'reboot')" title="Reiniciar">↺</button>`
             :`<button class="btn btn-start" onclick="vmAct(${vm.vmid},'start')" title="Iniciar"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg></button>`}
           <button class="btn btn-con" onclick="openConsole(${vm.vmid})" title="Console"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10l4 4-4 4"/></svg></button>
           <button class="btn" onclick="openEdit(${vm.vmid})" title="Editar">✎</button>
           <button class="btn btn-bkp" onclick="openCreateBackup(${vm.vmid})" title="Backup"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
-          <button class="btn" onclick="goToVMLogs(${vm.vmid})" title="Ver Logs"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></button>
+          <button class="btn" onclick="goToVMLogs(${vm.vmid})" title="Logs"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></button>
           <button class="btn btn-del" onclick="openDelete(${vm.vmid})" title="Excluir"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
         </div>
       </div>
@@ -1211,6 +1311,8 @@ function renderTable(id,showId){
     const mp=vm.maxmem>0?Math.round(vm.mem/vm.maxmem*100):0;
     const dp=vm.maxdisk>0?Math.round(vm.disk/vm.maxdisk*100):0;
     const mg=(vm.mem/1073741824).toFixed(1),dg=(vm.disk/1073741824).toFixed(1);
+    const maxg=(vm.maxmem/1073741824).toFixed(1);
+    const vcpus=vm.cpus||'?';
     const[ico,lbl]=vmIco(vm.name);
     const stCls=vm.status==='running'?'sr':vm.status==='paused'?'sp':'ss';
     const up=vm.uptime?fmtUp(vm.uptime):'—';
@@ -1218,8 +1320,8 @@ function renderTable(id,showId){
       ${showId?`<td style="font-family:var(--fm);font-size:11px;color:var(--txt3)">${vm.vmid}</td>`:''}
       <td><div class="vn-wrap"><div class="vico ${ico}">${lbl}</div><div><div class="vnm">${vm.name}</div><div class="vid">ID ${vm.vmid}</div></div></div></td>
       <td><span class="st ${stCls}"><span class="st-dot"></span>${vm.status}</span></td>
-      <td>${run?`<div class="bw"><div class="bt"><div class="bf bb" style="width:${cpu}%"></div></div><span class="bv">${cpu}%</span></div>`:'<span style="color:var(--txt3);font-family:var(--fm);font-size:11px">—</span>'}</td>
-      <td>${run?`<div class="bw"><div class="bt"><div class="bf bgr" style="width:${mp}%"></div></div><span class="bv">${mg}G</span></div>`:`<span style="color:var(--txt3);font-family:var(--fm);font-size:11px">${(vm.maxmem/1073741824).toFixed(1)}G</span>`}</td>
+      <td>${run?`<div class="bw"><div class="bt"><div class="bf bb" style="width:${cpu}%"></div></div><span class="bv">${cpu}% <span style="color:var(--txt3);font-size:10px">(${vcpus}vCPU)</span></span></div>`:`<span style="color:var(--txt2);font-family:var(--fm);font-size:11px">${vcpus} vCPU</span>`}</td>
+      <td>${run?`<div class="bw"><div class="bt"><div class="bf bgr" style="width:${mp}%"></div></div><span class="bv">${mg}/<span style="color:var(--txt2)">${maxg}G</span></span></div>`:`<span style="color:var(--txt2);font-family:var(--fm);font-size:11px">${maxg}G</span>`}</td>
       <td><div class="bw"><div class="bt"><div class="bf bam" style="width:${dp}%"></div></div><span class="bv">${dg}G</span></div></td>
       <td style="font-family:var(--fm);font-size:11px;color:var(--txt2)">${up}</td>
       <td><div class="acts">
@@ -2024,6 +2126,10 @@ async function loadVMTasks(){
 
 async function viewTaskLog(upid,type,starttime){
   const modal=g('task-log-modal');
+  currentTaskType=type;
+  currentTaskLog=[];
+  const existingAnalysis=g('ai-analysis-result');
+  if(existingAnalysis) existingAnalysis.remove();
   g('task-log-title').textContent='Log: '+type;
   g('task-log-meta').textContent=starttime?new Date(starttime*1000).toLocaleString('pt-BR'):'';
   g('task-log-status').innerHTML='';
@@ -2042,6 +2148,7 @@ async function viewTaskLog(upid,type,starttime){
       ${(status.starttime&&status.endtime)?`<span style="font-family:var(--fm);font-size:11px;color:var(--txt3)">Duração: ${fmtUp(status.endtime-status.starttime)}</span>`:''}
     </div>`;
     const lines=Array.isArray(log)?log:[];
+    currentTaskLog=lines;
     if(!lines.length){
       g('task-log-body').innerHTML='<div style="color:var(--txt3)">Nenhum log disponível.</div>';
       return;
@@ -2065,6 +2172,224 @@ async function viewTaskLog(upid,type,starttime){
 }
 
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderMarkdown(md){
+  function fmt(t){
+    return escHtml(t)
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/`([^`]+)`/g,'<code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:3px;font-size:11px;font-family:monospace">$1</code>');
+  }
+  const lines=md.split('\n');
+  let html='',inTable=false,firstRow=true;
+  for(const line of lines){
+    const t=line.trim();
+    if(t.startsWith('|')&&t.endsWith('|')){
+      if(/^\|[\s\-:|]+\|$/.test(t)){firstRow=false;continue;}
+      if(!inTable){inTable=true;firstRow=true;html+='<table class="ai-table">';}
+      const cells=t.slice(1,-1).split('|');
+      const tag=firstRow?'th':'td';
+      html+='<tr>'+cells.map(c=>`<${tag}>${fmt(c.trim())}</${tag}>`).join('')+'</tr>';
+      firstRow=false;
+    }else{
+      if(inTable){html+='</table>';inTable=false;firstRow=true;}
+      html+=t===''?'<div style="height:.35rem"></div>':`<div>${fmt(t)}</div>`;
+    }
+  }
+  if(inTable)html+='</table>';
+  return html;
+}
+
+// ── AI Assistant ──────────────────────────────────────────────────────────────
+let chatHistory=[], aiThinking=false, currentTaskLog=[], currentTaskType='';
+
+const AI_SUGGESTIONS=['Listar todas as VMs','Mostrar status do nó','Quais VMs estão paradas?','Verificar uso de storage'];
+
+const AI_TOOL_DONE={
+  get_node_status:'Status verificado',get_vms:'VMs listadas',get_vm_config:'Config carregada',
+  start_vm:'VM iniciada',stop_vm:'VM parada',shutdown_vm:'VM desligada',reboot_vm:'VM reiniciada',
+  get_storage:'Storage consultado',get_vm_backups:'Backups listados',
+};
+
+function initAIChat(){
+  const msgs=g('ai-messages');
+  if(!chatHistory.length){
+    msgs.innerHTML=`<div class="ai-welcome">
+      <div class="ai-welcome-icon">✦</div>
+      <div class="ai-welcome-t">Assistente IA</div>
+      <div class="ai-welcome-sub">Pergunte sobre suas VMs, consulte recursos ou execute ações usando linguagem natural.</div>
+      <div class="ai-suggestions">${AI_SUGGESTIONS.map(s=>`<div class="ai-sug" onclick="sendAISuggestion('${escHtml(s)}')">${escHtml(s)}</div>`).join('')}</div>
+    </div>`;
+  }
+  g('ai-input').focus();
+}
+
+function sendAISuggestion(text){
+  g('ai-input').value=text;
+  sendAIMessage();
+}
+
+function aiAddBubble(role,text){
+  const msgs=g('ai-messages');
+  const welcome=msgs.querySelector('.ai-welcome');
+  if(welcome) welcome.remove();
+  const time=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const wrap=document.createElement('div');
+  wrap.className='ai-msg '+role;
+  const bubble=document.createElement('div');
+  bubble.className='ai-bubble';
+  if(role==='assistant') bubble.innerHTML=renderMarkdown(text);
+  else bubble.textContent=text;
+  const ts=document.createElement('div');
+  ts.className='ai-msg-time';
+  ts.textContent=time;
+  wrap.appendChild(bubble);
+  wrap.appendChild(ts);
+  msgs.appendChild(wrap);
+  msgs.scrollTop=msgs.scrollHeight;
+  return bubble;
+}
+
+function aiAddToolChip(name,label){
+  const msgs=g('ai-messages');
+  const row=document.createElement('div');
+  row.className='ai-tool-row';
+  const chip=document.createElement('div');
+  chip.className='ai-tool-chip';
+  chip.id='chip-'+name;
+  chip.innerHTML=`<span class="spin" style="display:inline-block;font-size:10px">↺</span> ${escHtml(label)}`;
+  row.appendChild(chip);
+  msgs.appendChild(row);
+  msgs.scrollTop=msgs.scrollHeight;
+  return chip;
+}
+
+async function sendAIMessage(){
+  const input=g('ai-input'),sendBtn=g('ai-send-btn');
+  const text=input.value.trim();
+  if(!text||aiThinking) return;
+  input.value='';
+  aiThinking=true;
+  sendBtn.disabled=true;
+
+  aiAddBubble('user',text);
+  chatHistory.push({role:'user',content:text});
+
+  const msgs=g('ai-messages');
+  const typingWrap=document.createElement('div');
+  typingWrap.className='ai-msg assistant';
+  typingWrap.id='ai-typing';
+  typingWrap.innerHTML='<div class="ai-bubble" style="padding:.45rem .875rem"><div class="ai-typing"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div></div></div>';
+  msgs.appendChild(typingWrap);
+  msgs.scrollTop=msgs.scrollHeight;
+
+  let assistantBubble=null, assistantText='';
+  const toolChips={};
+
+  try{
+    const resp=await fetch(API+'/api/ai/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({messages:chatHistory.slice(-24)}),
+    });
+
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({error:'Erro '+resp.status}));
+      throw new Error(err.error||'Erro '+resp.status);
+    }
+
+    const reader=resp.body.getReader(),dec=new TextDecoder();
+    let buf='';
+
+    while(true){
+      const{done,value}=await reader.read();
+      if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');
+      buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data:')) continue;
+        try{
+          const ev=JSON.parse(line.slice(5));
+
+          if(ev.type==='text'){
+            if(!assistantBubble){
+              const typing=g('ai-typing');
+              if(typing) typing.remove();
+              assistantBubble=aiAddBubble('assistant','');
+            }
+            assistantText+=ev.delta;
+            assistantBubble.innerHTML=renderMarkdown(assistantText);
+            msgs.scrollTop=msgs.scrollHeight;
+          }
+
+          if(ev.type==='tool_start'){
+            const chip=aiAddToolChip(ev.name,ev.label);
+            toolChips[ev.name]=chip;
+          }
+
+          if(ev.type==='tool_end'){
+            const chip=toolChips[ev.name];
+            if(chip){
+              chip.className='ai-tool-chip done';
+              chip.innerHTML='✓ '+escHtml(AI_TOOL_DONE[ev.name]||ev.name);
+              setTimeout(()=>chip.parentNode?.remove(),3500);
+            }
+          }
+
+          if(ev.type==='done'){
+            if(ev.history) chatHistory=ev.history;
+            else if(assistantText) chatHistory.push({role:'assistant',content:assistantText});
+          }
+
+          if(ev.type==='error'){
+            const typing=g('ai-typing');
+            if(typing) typing.remove();
+            if(!assistantBubble) aiAddBubble('assistant','Erro: '+ev.message);
+          }
+        }catch(_){}
+      }
+    }
+  }catch(e){
+    const typing=g('ai-typing');
+    if(typing) typing.remove();
+    if(!assistantBubble) aiAddBubble('assistant','Erro de conexão: '+e.message);
+  }
+
+  const typing=g('ai-typing');
+  if(typing) typing.remove();
+  aiThinking=false;
+  sendBtn.disabled=false;
+  input.focus();
+}
+
+async function analyzeCurrentLog(){
+  const btn=g('ai-analyze-log-btn');
+  const existing=g('ai-analysis-result');
+  if(existing) existing.remove();
+
+  btn.disabled=true;
+  btn.textContent='↺ Analisando...';
+
+  try{
+    const r=await fetch(API+'/api/ai/analyze-log',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({log:currentTaskLog,taskType:currentTaskType}),
+    });
+    const d=await r.json();
+    if(d.error) throw new Error(d.error);
+
+    const box=document.createElement('div');
+    box.id='ai-analysis-result';
+    box.className='ai-analysis-box';
+    box.innerHTML=`<div class="ai-a-hdr">✦ Análise IA</div>${escHtml(d.analysis).replace(/\n/g,'<br>')}`;
+    g('task-log-body').before(box);
+  }catch(e){
+    toast('Erro na análise: '+e.message,'err');
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='✦ Analisar com IA';
+  }
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function toast(msg,t='info'){
